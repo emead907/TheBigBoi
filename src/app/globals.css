@@ -3,20 +3,20 @@
 @tailwind utilities;
 
 @layer base {
-  body { @apply bg-paper text-[#1f2533] font-sans antialiased; }
+  body { @apply bg-[#f3f5f9] text-[#1b2433] font-sans antialiased; }
   h1, h2, h3 { text-wrap: balance; }
   :focus-visible { outline: 2px solid #004380; outline-offset: 2px; }
 }
 
 @layer components {
-  .card { @apply rounded-xl border border-mist bg-white; }
+  .card { @apply rounded-2xl border border-[#e3e7ee] bg-white shadow-[0_1px_2px_rgba(16,40,80,0.04)]; }
   .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
   .btn-primary { @apply btn bg-navy text-white hover:bg-navy-700; }
   .btn-ghost { @apply btn border border-mist bg-white text-navy hover:bg-navy-50; }
   .btn-danger { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50; }
   .input { @apply w-full rounded-lg border border-mist bg-white px-3 py-2 text-sm text-[#1f2533] placeholder:text-[#8a93a3] focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20; }
   .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-brand; }
-  .eyebrow { @apply text-xs font-semibold uppercase tracking-[0.18em] text-slate-brand; }
+  .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.16em] text-slate-brand; }
   .display { @apply font-display tracking-wide text-navy; }
   .chip { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
 }

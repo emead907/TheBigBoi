@@ -6,11 +6,12 @@ import type { Trial } from '@/lib/types';
 import { STAGES, STATUS_LABEL, type Stage } from '@/lib/stages';
 import { ageOn, formatDay } from '@/lib/dates';
 import { updateTrial, type TrialPatch } from '@/app/[gym]/actions';
-import { timeAgo } from '@/lib/timeago';
+import { Avatar, CheckBox, PageHeader, splitClass } from './ui';
+import { Calendar, ChevronRight, Plus, Search } from './icons';
 
 type Row = Trial & { stage: Stage };
 
-const STAGE_COLOR: Record<Stage, string> = {
+const DOT: Record<Stage, string> = {
   new: 'bg-stage-new', upcoming: 'bg-stage-upcoming', today: 'bg-stage-today',
   follow_up: 'bg-stage-follow', enrolled: 'bg-stage-won', closed: 'bg-stage-lost',
 };
@@ -24,7 +25,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
   const [error, setError] = useState('');
   const [, startTransition] = useTransition();
   const [rows, applyOptimistic] = useOptimistic(trials, (state, u: { id: string; patch: TrialPatch }) =>
-    state.map((t) => (t.id === u.id ? { ...t, ...u.patch } as Row : t)));
+    state.map((t) => (t.id === u.id ? ({ ...t, ...u.patch } as Row) : t)));
 
   const counts = useMemo(() => {
     const c: Record<Stage, number> = { new: 0, upcoming: 0, today: 0, follow_up: 0, enrolled: 0, closed: 0 };
@@ -32,13 +33,12 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
     return c;
   }, [trials]);
 
+  const searching = query.trim().length > 0;
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = rows.filter((t) => t.stage === stage);
-    if (q) {
-      list = rows.filter((t) => [t.child_name, t.parent_name, t.parent_email, t.parent_phone, t.class_name]
-        .some((v) => v?.toLowerCase().includes(q)));
-    }
+    let list = q
+      ? rows.filter((t) => [t.child_name, t.parent_name, t.parent_email, t.parent_phone, t.class_name].some((v) => v?.toLowerCase().includes(q)))
+      : rows.filter((t) => t.stage === stage);
     if (stage === 'upcoming' && !q) list = [...list].sort((a, b) => (a.first_day ?? '').localeCompare(b.first_day ?? ''));
     return list;
   }, [rows, stage, query]);
@@ -52,91 +52,132 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
       router.refresh();
     });
   }
-  const stamp = (on: boolean) => (on ? new Date().toISOString() : null);
-  const current = STAGES.find((s) => s.key === stage)!;
+  const view: Stage | 'search' = searching ? 'search' : stage;
+  const longToday = new Date(today + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow">{formatDay(today, { year: true })}</div>
-          <h1 className="display text-4xl">Trial Board</h1>
+    <div className="space-y-6">
+      <PageHeader eyebrow="Enrollment pipeline" title="Family Requests" subtitle="Keep every family moving toward their first great day."
+        right={<div className="text-sm font-semibold text-navy">{longToday}</div>} />
+
+      <div className="-mx-4 overflow-x-auto border-b border-[#e3e7ee] px-4 sm:mx-0 sm:px-0">
+        <div role="tablist" aria-label="Stages" className="flex min-w-max gap-6">
+          {STAGES.map((s) => {
+            const on = stage === s.key && !searching;
+            return (
+              <button key={s.key} role="tab" aria-selected={on}
+                onClick={() => { setStage(s.key); setQuery(''); router.replace(`/${slug}?stage=${s.key}`, { scroll: false }); }}
+                className={`relative flex items-center gap-2 pb-3 pt-1 text-sm font-semibold transition ${on ? 'text-navy' : 'text-slate-brand hover:text-navy'}`}>
+                <span className={`h-2 w-2 rounded-full ${DOT[s.key]}`} aria-hidden />
+                {s.label}
+                <span className="rounded-md bg-[#e9edf3] px-1.5 py-0.5 text-[11px] tabular-nums text-[#3b4658]">{counts[s.key]}</span>
+                {on && <span className="absolute inset-x-0 -bottom-px h-[3px] rounded-t bg-navy" />}
+              </button>
+            );
+          })}
         </div>
-        <div className="flex w-full gap-2 sm:w-auto">
-          <input id="board-search" className="input sm:w-64" placeholder="Search child, parent, class…" value={query}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative w-full sm:w-80">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a95a6]" />
+          <input id="board-search" className="input py-2.5 pl-9" placeholder="Search child, parent, or class" value={query}
             onChange={(e) => setQuery(e.target.value)} aria-label="Search requests" />
-          <Link href={`/${slug}/new`} className="btn-primary whitespace-nowrap">+ Add request</Link>
-        </div>
+        </label>
+        <span className="text-sm text-slate-brand"><strong className="text-[#1b2433]">{visible.length}</strong> {searching ? 'matches in every stage' : visible.length === 1 ? 'request' : 'requests'}</span>
+        <Link href={`/${slug}/new`} className="btn-primary ml-auto rounded-xl px-4 py-2.5"><Plus className="h-4 w-4" />Add request</Link>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4">
-        <div role="tablist" className="flex min-w-max gap-2">
-          {STAGES.map((s) => (
-            <button key={s.key} role="tab" aria-selected={stage === s.key && !query}
-              onClick={() => { setStage(s.key); setQuery(''); router.replace(`/${slug}?stage=${s.key}`, { scroll: false }); }}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                stage === s.key && !query ? 'border-navy bg-white text-navy shadow-sm' : 'border-transparent text-slate-brand hover:bg-white'}`}>
-              <span className={`h-2.5 w-2.5 rounded-full ${STAGE_COLOR[s.key]}`} aria-hidden />
-              {s.label}
-              <span className="rounded-full bg-paper px-2 text-xs tabular-nums text-[#1f2533]">{counts[s.key]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <p className="text-sm text-slate-brand">{query ? `Search results across every stage (${visible.length})` : current.hint}</p>
+      {!searching && <p className="-mt-3 text-xs text-slate-brand">{STAGES.find((s) => s.key === stage)?.hint}</p>}
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {visible.length === 0 ? (
-        <div className="card p-10 text-center text-sm text-slate-brand">
-          {query ? 'No matches.' : stage === 'new' ? 'No new requests. Nice work!' : 'Nothing here right now.'}
+        <div className="card p-12 text-center">
+          <div className="display text-2xl">{searching ? 'No matches' : stage === 'new' ? 'All caught up' : 'Nothing here yet'}</div>
+          <p className="mt-1 text-sm text-slate-brand">{searching ? 'Try a different name or class.' : 'New families will show up here as they move along.'}</p>
         </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="card hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b border-mist text-left text-xs uppercase tracking-wider text-slate-brand">
-                <tr>
-                  <th className="px-4 py-3">Child</th>
-                  <th className="px-3 py-3">Class</th>
-                  <th className="px-3 py-3">Parent</th>
-                  <StageHeaders stage={query ? 'search' : stage} />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-mist">
-                {visible.map((t) => (
-                  <tr key={t.id} className={`align-top ${isOverdue(t) ? 'bg-red-50/70' : ''}`}>
-                    <td className="px-4 py-3">
-                      <Link href={`/${slug}/trials/${t.id}`} className="font-semibold text-navy hover:underline">{t.child_name}</Link>
-                      <div className="text-xs text-slate-brand">{ageOn(t.birthday, today)}{t.birthday ? ' · ' : ''}{timeAgo(t.received_at)}</div>
-                    </td>
-                    <td className="px-3 py-3"><div>{t.class_name}</div><div className="text-xs text-slate-brand">{t.requested_time}</div></td>
-                    <td className="px-3 py-3"><div>{t.parent_name}</div><div className="text-xs text-slate-brand">{t.parent_phone}</div></td>
-                    <StageCells t={t} stage={query ? 'search' : stage} save={save} stamp={stamp} timezone={timezone} />
+          <div className="card hidden overflow-hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-[#e3e7ee] text-left text-[11px] font-bold uppercase tracking-[0.1em] text-slate-brand">
+                  <tr>
+                    <th className="py-3.5 pl-5 pr-3">Child</th>
+                    <th className="px-3 py-3.5">Class</th>
+                    <th className="px-3 py-3.5">Parent</th>
+                    <th className="px-3 py-3.5">Received</th>
+                    <Heads view={view} />
+                    <th className="w-10" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#edf0f4]">
+                  {visible.map((t) => {
+                    const late = isOverdue(t);
+                    const cls = splitClass(t.class_name);
+                    return (
+                      <tr key={t.id} className={`group align-middle ${late ? 'bg-[#fdf1f1]' : 'hover:bg-[#f8f9fc]'}`}>
+                        <td className={`py-4 pl-5 pr-3 ${late ? 'border-l-[3px] border-red-500' : 'border-l-[3px] border-transparent'}`}>
+                          <div className="flex items-center gap-3">
+                            <Avatar name={t.child_name} />
+                            <div>
+                              <Link href={`/${slug}/trials/${t.id}`} className="font-semibold text-[#1b2433] hover:text-navy hover:underline">{t.child_name}</Link>
+                              <div className="text-xs text-slate-brand">{t.birthday ? `Age ${ageOn(t.birthday, today).replace(' yrs', '')}` : '—'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-4">
+                          <div className="font-semibold">{cls.name || '—'}</div>
+                          <div className="text-xs text-slate-brand">{[cls.detail, t.requested_time].filter(Boolean).join(' · ')}</div>
+                        </td>
+                        <td className="px-3 py-4">
+                          <div className="font-semibold">{t.parent_name}</div>
+                          <div className="text-xs text-slate-brand">{t.parent_phone}</div>
+                        </td>
+                        <td className="px-3 py-4"><Received iso={t.received_at} timezone={timezone} late={late} /></td>
+                        <Cells t={t} view={view} save={save} />
+                        <td className="pr-4">
+                          <Link href={`/${slug}/trials/${t.id}`} aria-label={`Open ${t.child_name}`} className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa4b4] hover:bg-white hover:text-navy">
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          {/* Phone cards */}
           <ul className="space-y-3 md:hidden">
-            {visible.map((t) => (
-              <li key={t.id} className={`card p-4 ${isOverdue(t) ? 'border-red-200 bg-red-50/70' : ''}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link href={`/${slug}/trials/${t.id}`} className="font-semibold text-navy">{t.child_name}</Link>
-                    <div className="text-xs text-slate-brand">{ageOn(t.birthday, today)} · {t.class_name}</div>
-                    <div className="text-xs text-slate-brand">{t.requested_time}</div>
+            {visible.map((t) => {
+              const late = isOverdue(t);
+              const cls = splitClass(t.class_name);
+              return (
+                <li key={t.id} className={`card overflow-hidden ${late ? 'border-l-[3px] border-l-red-500 bg-[#fdf1f1]' : ''}`}>
+                  <Link href={`/${slug}/trials/${t.id}`} className="flex items-center gap-3 p-4 pb-3">
+                    <Avatar name={t.child_name} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold">{t.child_name}</div>
+                      <div className="text-xs text-slate-brand">{t.birthday ? `Age ${ageOn(t.birthday, today).replace(' yrs', '')}` : ''}{late ? ' · Needs attention' : ''}</div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-[#9aa4b4]" />
+                  </Link>
+                  <div className="mx-4 rounded-xl bg-[#f3f5f9] px-3 py-2.5 text-sm">
+                    <div className="eyebrow text-[10px]">Class</div>
+                    <div className="font-semibold">{cls.name} <span className="font-normal text-slate-brand">{cls.detail && `(${cls.detail})`}</span></div>
+                    {t.requested_time && <div className="text-xs text-slate-brand">{t.requested_time}</div>}
                   </div>
-                  <a href={`tel:${t.parent_phone ?? ''}`} className="btn-ghost shrink-0 px-2.5 py-1 text-xs">Call</a>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                  <StageCells t={t} stage={query ? 'search' : stage} save={save} stamp={stamp} timezone={timezone} mobile />
-                </div>
-              </li>
-            ))}
+                  <div className="flex items-center justify-between px-4 py-3 text-sm">
+                    <div><div className="eyebrow text-[10px]">Parent</div><div className="font-semibold">{t.parent_name}</div></div>
+                    {t.parent_phone && <a href={`tel:${t.parent_phone}`} className="btn-ghost rounded-lg px-3 py-1.5 text-xs">{t.parent_phone}</a>}
+                  </div>
+                  <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-[#edf0f4] px-4 py-3">
+                    <Cells t={t} view={view} save={save} mobile />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
@@ -148,66 +189,88 @@ function isOverdue(t: Row) {
   return t.stage === 'new' && !t.spot_email_sent_at && Date.now() - Date.parse(t.received_at) > 86_400_000;
 }
 
-function StageHeaders({ stage }: { stage: Stage | 'search' }) {
-  const th = (label: string, cls = '') => <th className={`px-3 py-3 ${cls}`}>{label}</th>;
-  if (stage === 'new') return <>{th('SportsEngine', 'text-center')}{th('Spot email', 'text-center')}{th('Called', 'text-center')}{th('First day')}</>;
-  if (stage === 'upcoming') return <>{th('First day')}{th('Reminder')}</>;
-  if (stage === 'today') return <>{th('Time')}{th('Showed up')}</>;
-  if (stage === 'follow_up') return <>{th('First day')}{th('Followed up', 'text-center')}{th('Status')}</>;
+function Received({ iso, timezone, late }: { iso: string; timezone: string; late: boolean }) {
+  const d = new Date(iso);
+  const day = (x: Date) => x.toLocaleDateString('en-CA', { timeZone: timezone });
+  const now = new Date();
+  const yest = new Date(now.getTime() - 86_400_000);
+  const label = day(d) === day(now) ? 'Today' : day(d) === day(yest) ? 'Yesterday'
+    : d.toLocaleDateString('en-US', { timeZone: timezone, month: 'short', day: 'numeric' });
+  return (
+    <div>
+      <div className="font-semibold">{label}</div>
+      <div className="text-xs text-slate-brand">{d.toLocaleTimeString('en-US', { timeZone: timezone, hour: 'numeric', minute: '2-digit' })}</div>
+      {late && <div className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600">Needs attention</div>}
+    </div>
+  );
+}
+
+function Heads({ view }: { view: Stage | 'search' }) {
+  const th = (l: string, c = '') => <th className={`px-3 py-3.5 ${c}`}>{l}</th>;
+  if (view === 'new') return <>{th('SportsEngine', 'text-center')}{th('Spot email', 'text-center')}{th('Called', 'text-center')}{th('First day')}</>;
+  if (view === 'upcoming') return <>{th('First day')}{th('Reminder')}</>;
+  if (view === 'today') return <>{th('Time')}{th('Showed up')}</>;
+  if (view === 'follow_up') return <>{th('First day')}{th('Followed up', 'text-center')}{th('Status')}</>;
   return <>{th('Stage')}{th('First day')}</>;
 }
 
-function StageCells({ t, stage, save, stamp, mobile }: {
-  t: Row; stage: Stage | 'search'; save: (id: string, p: TrialPatch) => void; stamp: (on: boolean) => string | null; timezone: string; mobile?: boolean;
-}) {
-  const Cell = ({ children, label, center }: { children: React.ReactNode; label: string; center?: boolean }) =>
-    mobile ? <label className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-brand">{label}</span>{children}</label>
-      : <td className={`px-3 py-3 ${center ? 'text-center' : ''}`}>{children}</td>;
-  const box = (checked: boolean, onChange: (v: boolean) => void, label: string) => (
-    <input type="checkbox" aria-label={`${label}: ${t.child_name}`} checked={checked} onChange={(e) => onChange(e.target.checked)}
-      className="h-5 w-5 cursor-pointer accent-navy" />
+function DatePill({ t, save }: { t: Row; save: (id: string, p: TrialPatch) => void }) {
+  return (
+    <label className="relative inline-flex h-9 w-36 items-center gap-2 rounded-lg border border-[#d6dce5] bg-white px-2.5 text-xs font-semibold text-navy hover:border-navy">
+      <Calendar className="h-4 w-4 shrink-0" />
+      <span className={t.first_day ? '' : 'font-normal text-[#8a95a6]'}>{t.first_day ? formatDay(t.first_day).replace(/^\w+, /, '') : 'Select date'}</span>
+      <input type="date" aria-label={`First day for ${t.child_name}`} value={t.first_day ?? ''}
+        onChange={(e) => save(t.id, { first_day: e.target.value || null })}
+        className="absolute inset-0 cursor-pointer opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+    </label>
   );
-  const dateInput = (
-    <input type="date" aria-label={`First day for ${t.child_name}`} value={t.first_day ?? ''}
-      onChange={(e) => save(t.id, { first_day: e.target.value || null })} className="input w-40 py-1.5" />
-  );
+}
 
-  if (stage === 'new') return (
+function Cells({ t, view, save, mobile }: { t: Row; view: Stage | 'search'; save: (id: string, p: TrialPatch) => void; mobile?: boolean }) {
+  const Cell = ({ children, label, center }: { children: React.ReactNode; label: string; center?: boolean }) =>
+    mobile
+      ? <div className="flex flex-col items-center gap-1"><span className="eyebrow text-[10px]">{label}</span>{children}</div>
+      : <td className={`px-3 py-4 ${center ? 'text-center' : ''}`}>{children}</td>;
+  const stamp = (on: boolean) => (on ? new Date().toISOString() : null);
+
+  if (view === 'new') return (
     <>
-      <Cell label="SportsEngine" center>{box(t.in_sportsengine, (v) => save(t.id, { in_sportsengine: v }), 'SportsEngine')}</Cell>
-      <Cell label="Spot email" center>{box(!!t.spot_email_sent_at, (v) => save(t.id, { spot_email_sent_at: stamp(v) }), 'Spot email sent')}</Cell>
-      <Cell label="Called" center>{box(!!t.called_at, (v) => save(t.id, { called_at: stamp(v) }), 'Called')}</Cell>
-      <Cell label="First day">{dateInput}</Cell>
+      <Cell label="SportsEngine" center><CheckBox label={`SportsEngine: ${t.child_name}`} checked={t.in_sportsengine} onChange={(v) => save(t.id, { in_sportsengine: v })} /></Cell>
+      <Cell label="Spot email" center><CheckBox label={`Spot email sent: ${t.child_name}`} checked={!!t.spot_email_sent_at} onChange={(v) => save(t.id, { spot_email_sent_at: stamp(v) })} /></Cell>
+      <Cell label="Called" center><CheckBox label={`Called: ${t.child_name}`} checked={!!t.called_at} onChange={(v) => save(t.id, { called_at: stamp(v) })} /></Cell>
+      <Cell label="First day"><DatePill t={t} save={save} /></Cell>
     </>
   );
-  if (stage === 'upcoming') return (
+  if (view === 'upcoming') return (
     <>
-      <Cell label="First day">{dateInput}</Cell>
-      <Cell label="Reminder"><span className="text-xs text-slate-brand">{t.reminder_sent_at ? 'Sent' : 'Goes out the night before'}</span></Cell>
+      <Cell label="First day"><DatePill t={t} save={save} /></Cell>
+      <Cell label="Reminder">
+        <span className={`chip ${t.reminder_sent_at ? 'bg-[#e3f3e9] text-stage-won' : 'bg-[#eef1f6] text-slate-brand'}`}>
+          {t.reminder_sent_at ? 'Sent' : 'Night before'}
+        </span>
+      </Cell>
     </>
   );
-  if (stage === 'today') return (
+  if (view === 'today') return (
     <>
-      <Cell label="Time"><span>{t.first_day_time || t.requested_time || '—'}</span></Cell>
+      <Cell label="Time"><span className="font-semibold">{t.first_day_time || t.requested_time || '—'}</span></Cell>
       <Cell label="Showed up">
-        <div className="flex gap-1">
+        <div className="inline-flex overflow-hidden rounded-lg border border-[#d6dce5]">
           {[{ v: true, l: 'Yes' }, { v: false, l: 'No' }].map((o) => (
-            <button key={o.l} type="button" onClick={() => save(t.id, { showed_up: t.showed_up === o.v ? null : o.v })}
-              className={`rounded-md border px-3 py-1 text-xs font-semibold ${t.showed_up === o.v
-                ? (o.v ? 'border-stage-won bg-stage-won text-white' : 'border-red-600 bg-red-600 text-white')
-                : 'border-mist bg-white text-slate-brand'}`}>{o.l}</button>
+            <button key={o.l} type="button" aria-pressed={t.showed_up === o.v}
+              onClick={() => save(t.id, { showed_up: t.showed_up === o.v ? null : o.v })}
+              className={`px-3.5 py-1.5 text-xs font-bold ${t.showed_up === o.v ? (o.v ? 'bg-stage-won text-white' : 'bg-red-600 text-white') : 'bg-white text-slate-brand hover:bg-[#f3f5f9]'}`}>{o.l}</button>
           ))}
         </div>
       </Cell>
     </>
   );
-  if (stage === 'follow_up') return (
+  if (view === 'follow_up') return (
     <>
-      <Cell label="First day"><span>{formatDay(t.first_day)}{t.showed_up === false ? ' · no-show' : ''}</span></Cell>
-      <Cell label="Followed up" center>{box(!!t.followed_up_at, (v) => save(t.id, { followed_up_at: stamp(v) }), 'Followed up')}</Cell>
+      <Cell label="First day"><span className="font-semibold">{formatDay(t.first_day)}</span>{t.showed_up === false && <span className="ml-1 text-xs text-red-600">no-show</span>}</Cell>
+      <Cell label="Followed up" center><CheckBox label={`Followed up: ${t.child_name}`} checked={!!t.followed_up_at} onChange={(v) => save(t.id, { followed_up_at: stamp(v) })} /></Cell>
       <Cell label="Status">
-        <select aria-label={`Status for ${t.child_name}`} value={t.status} onChange={(e) => save(t.id, { status: e.target.value as Trial['status'] })}
-          className="input w-40 py-1.5">
+        <select aria-label={`Status for ${t.child_name}`} value={t.status} onChange={(e) => save(t.id, { status: e.target.value as Trial['status'] })} className="input h-9 w-40 py-1">
           {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       </Cell>
@@ -215,7 +278,9 @@ function StageCells({ t, stage, save, stamp, mobile }: {
   );
   return (
     <>
-      <Cell label="Stage"><span className="text-xs font-semibold">{STAGES.find((s) => s.key === t.stage)?.label}</span></Cell>
+      <Cell label="Stage">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold"><span className={`h-2 w-2 rounded-full ${DOT[t.stage]}`} />{STAGES.find((s) => s.key === t.stage)?.label}</span>
+      </Cell>
       <Cell label="First day"><span>{formatDay(t.first_day) || '—'}</span></Cell>
     </>
   );

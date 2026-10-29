@@ -1,152 +1,203 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { addDays } from '@/lib/dates';
 import { byClass, byMonth, funnel, inLastDays, speed } from '@/lib/reports';
 import type { Trial } from '@/lib/types';
+import { Card, PageHeader } from '@/components/ui';
+import { Calendar, Sparkle, TrendUp, Users } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
 
 const pct = (n: number | null) => (n == null ? '—' : `${Math.round(n * 100)}%`);
+const RANGES = [{ d: 30, l: 'Last 30 days' }, { d: 90, l: 'Last 90 days' }, { d: 365, l: 'Last 12 months' }];
 
-export default async function ReportsPage({ params, searchParams }: { params: { gym: string }; searchParams: { days?: string } }) {
+export default async function ReportsPage({ params, searchParams }: { params: { gym: string }; searchParams: { days?: string; all?: string } }) {
   const ctx = await getGymContext(params.gym);
-  const days = [30, 90, 365].includes(Number(searchParams.days)) ? Number(searchParams.days) : 90;
+  const days = RANGES.some((r) => r.d === Number(searchParams.days)) ? Number(searchParams.days) : 30;
   const supabase = createClient();
-  const since = addDays(ctx.today, -400);
   const { data } = await supabase
     .from('trials')
     .select('gym_id, received_at, first_day, showed_up, status, class_name, spot_email_sent_at, closed_at')
     .in('gym_id', ctx.gyms.map((g) => g.id))
-    .gte('received_at', since)
-    .limit(10000);
-  const all = (data ?? []) as (Pick<Trial, 'gym_id' | 'received_at' | 'first_day' | 'showed_up' | 'status' | 'class_name' | 'spot_email_sent_at' | 'closed_at'>)[];
+    .gte('received_at', addDays(ctx.today, -800))
+    .limit(20000);
+  type R = Pick<Trial, 'gym_id' | 'received_at' | 'first_day' | 'showed_up' | 'status' | 'class_name' | 'spot_email_sent_at' | 'closed_at'>;
+  const all = (data ?? []) as R[];
   const mine = all.filter((t) => t.gym_id === ctx.gym.id);
-  const recent = inLastDays(mine, ctx.today, days, ctx.gym.timezone);
+  const tz = ctx.gym.timezone;
+  const recent = inLastDays(mine, ctx.today, days, tz);
+  const prior = inLastDays(mine, ctx.today, days, tz, days);
   const f = funnel(recent);
-  const s = speed(recent, ctx.gym.timezone);
+  const p = funnel(prior);
+  const s = speed(recent, tz);
   const classes = byClass(recent);
-  const months = byMonth(mine, ctx.today, ctx.gym.timezone);
-  const maxMonth = Math.max(1, ...months.map((m) => m.requested));
+  const showAll = searchParams.all === '1';
+  const months = byMonth(mine, ctx.today, tz, 6);
   const gymRows = ctx.gyms.map((g) => ({ gym: g, ...funnel(inLastDays(all.filter((t) => t.gym_id === g.id), ctx.today, days, g.timezone)) }));
+  const rangeLabel = RANGES.find((r) => r.d === days)!.l;
 
-  const steps = [
-    { label: 'Requested', n: f.requested },
-    { label: 'First day scheduled', n: f.scheduled },
-    { label: 'Showed up', n: f.showed },
-    { label: 'Enrolled', n: f.enrolled },
+  const delta = (now: number | null, before: number | null, isRate = false) => {
+    if (now == null || before == null || (!isRate && before === 0)) return null;
+    const v = isRate ? (now - before) * 100 : ((now - before) / before) * 100;
+    return { v, text: `${v >= 0 ? '+' : ''}${v.toFixed(isRate ? 1 : 0)}${isRate ? ' pts' : '%'}` };
+  };
+  const tiles = [
+    { label: 'Requests', value: String(f.requested), d: delta(f.requested, p.requested), Icon: Users },
+    { label: 'First days', value: String(f.scheduled), d: delta(f.scheduled, p.scheduled), Icon: Calendar },
+    { label: 'Enrolled', value: String(f.enrolled), d: delta(f.enrolled, p.enrolled), Icon: Sparkle },
+    { label: 'Enrollment rate', value: pct(f.rate), d: delta(f.rate, p.rate, true), Icon: TrendUp },
   ];
+  const steps = [
+    { label: 'Requested', n: f.requested, color: '#1b3f73' },
+    { label: 'Scheduled', n: f.scheduled, color: '#2f5f8f' },
+    { label: 'Showed up', n: f.showed, color: '#4a7aa3' },
+    { label: 'Enrolled', n: f.enrolled, color: '#3f8a85' },
+  ];
+
+  // Line chart geometry
+  const W = 560, H = 200, PX = 28, PY = 18;
+  const maxM = Math.max(4, ...months.map((m) => m.requested));
+  const niceMax = Math.ceil(maxM / 4) * 4;
+  const pts = months.map((m, i) => ({ x: PX + (i * (W - PX * 2)) / (months.length - 1), y: H - PY - (m.requested / niceMax) * (H - PY * 2), m }));
+  const line = pts.map((q, i) => {
+    if (i === 0) return `M${q.x},${q.y}`;
+    const a = pts[i - 1];
+    const cx = (a.x + q.x) / 2;
+    return `C${cx},${a.y} ${cx},${q.y} ${q.x},${q.y}`;
+  }).join(' ');
+  const area = `${line} L${pts[pts.length - 1].x},${H - PY} L${pts[0].x},${H - PY} Z`;
+
+  const href = (o: { days?: number; all?: boolean; slug?: string }) =>
+    `/${o.slug ?? ctx.gym.slug}/reports?days=${o.days ?? days}${(o.all ?? showAll) ? '&all=1' : ''}`;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow">{ctx.gym.short_name}</div>
-          <h1 className="display text-4xl">Reports</h1>
-        </div>
-        <nav className="flex gap-1 rounded-lg bg-white p-1 text-sm" aria-label="Date range">
-          {[30, 90, 365].map((d) => (
-            <a key={d} href={`?days=${d}`} className={`rounded-md px-3 py-1.5 font-semibold ${d === days ? 'bg-navy text-white' : 'text-slate-brand hover:text-navy'}`}>
-              {d === 365 ? '12 months' : `${d} days`}
-            </a>
-          ))}
-        </nav>
-      </div>
+      <PageHeader eyebrow="Performance overview" title="Reports" subtitle="See how requests move from interest to enrollment."
+        right={
+          <div className="flex flex-wrap items-center gap-3">
+            {ctx.gyms.length > 1 && (
+              <nav className="flex rounded-xl border border-[#e3e7ee] bg-white p-1" aria-label="Gym">
+                {ctx.gyms.map((g) => (
+                  <Link key={g.id} href={href({ slug: g.slug })} aria-current={g.id === ctx.gym.id ? 'page' : undefined}
+                    className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold ${g.id === ctx.gym.id ? 'bg-navy-50 text-navy' : 'text-slate-brand hover:text-navy'}`}>{g.short_name}</Link>
+                ))}
+              </nav>
+            )}
+            <nav className="flex rounded-xl border border-[#e3e7ee] bg-white p-1" aria-label="Date range">
+              {RANGES.map((r) => (
+                <Link key={r.d} href={href({ days: r.d })} aria-current={r.d === days ? 'page' : undefined}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${r.d === days ? 'bg-navy text-white' : 'text-slate-brand hover:text-navy'}`}>
+                  {r.d === days && <Calendar className="h-3.5 w-3.5" />}{r.l}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        } />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          { label: 'Requests', value: String(f.requested) },
-          { label: 'First days scheduled', value: String(f.scheduled) },
-          { label: 'Enrolled', value: String(f.enrolled) },
-          { label: 'Enrollment rate', value: pct(f.rate), note: f.decided ? `of ${f.decided} decided` : 'none decided yet' },
-        ].map((t) => (
-          <div key={t.label} className="card p-4">
-            <div className="eyebrow">{t.label}</div>
-            <div className="display mt-1 text-5xl tabular-nums">{t.value}</div>
-            {t.note && <div className="text-xs text-slate-brand">{t.note}</div>}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {tiles.map(({ label, value, d, Icon }) => (
+          <div key={label} className="card p-5">
+            <div className="flex items-start justify-between">
+              <span className="text-sm font-semibold text-slate-brand">{label}</span>
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-navy-50 text-navy"><Icon className="h-4 w-4" /></span>
+            </div>
+            <div className="mt-2 font-display text-5xl leading-none tabular-nums text-navy">{value}</div>
+            <div className="mt-2 text-xs text-slate-brand">
+              {d ? <><span className={`font-semibold ${d.v >= 0 ? 'text-stage-won' : 'text-red-600'}`}>{d.text}</span> vs. previous {days} days</> : 'No earlier data to compare'}
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="card p-5">
-          <h2 className="display text-2xl">Funnel</h2>
-          <div className="mt-4 space-y-3">
+      <Card eyebrow="Conversion" title="Enrollment funnel" action={<span className="text-xs text-slate-brand">{rangeLabel} · All classes</span>}>
+        <div className="overflow-x-auto pb-1">
+          <ol className="flex min-w-[640px] items-stretch" aria-label="Enrollment funnel">
             {steps.map((st, i) => (
-              <div key={st.label}>
-                <div className="flex justify-between text-sm"><span className="font-semibold">{st.label}</span>
-                  <span className="tabular-nums">{st.n}{i > 0 && steps[0].n ? ` · ${pct(st.n / steps[0].n)}` : ''}</span></div>
-                <div className="mt-1 h-3 rounded-full bg-paper">
-                  <div className="h-3 rounded-full bg-navy" style={{ width: `${steps[0].n ? (st.n / steps[0].n) * 100 : 0}%`, opacity: 1 - i * 0.18 }} />
+              <li key={st.label} className="relative flex-1" style={{ marginLeft: i ? -6 : 0 }}>
+                <div className="flex h-20 items-center justify-between py-3 pl-7 pr-9 text-white"
+                  style={{ background: st.color, clipPath: i === 0 ? 'polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%)' : 'polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%, 22px 50%)' }}>
+                  <div>
+                    <div className="font-display text-4xl leading-none tabular-nums">{st.n}</div>
+                    <div className="text-xs font-semibold opacity-90">{st.label}</div>
+                  </div>
+                  <div className="text-xs font-semibold tabular-nums opacity-90">{i === 0 ? '100%' : pct(steps[0].n ? st.n / steps[0].n : null)}</div>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
-          <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
-            <div><dt className="text-slate-brand">Avg. days to first day</dt><dd className="font-semibold tabular-nums">{s.avgDaysToFirstDay == null ? '—' : s.avgDaysToFirstDay.toFixed(1)}</dd></div>
-            <div><dt className="text-slate-brand">Spot emails sent within a day</dt><dd className="font-semibold tabular-nums">{pct(s.spotWithinDay)}</dd></div>
-          </dl>
-        </section>
+          </ol>
+        </div>
+        <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2 border-t border-[#edf0f4] pt-4 text-sm">
+          <div><dt className="text-xs text-slate-brand">Avg. days from request to first day</dt><dd className="font-semibold tabular-nums">{s.avgDaysToFirstDay == null ? '—' : s.avgDaysToFirstDay.toFixed(1)}</dd></div>
+          <div><dt className="text-xs text-slate-brand">Spot emails sent within a day</dt><dd className="font-semibold tabular-nums">{pct(s.spotWithinDay)}</dd></div>
+          <div><dt className="text-xs text-slate-brand">Decided (enrolled or not)</dt><dd className="font-semibold tabular-nums">{f.decided}</dd></div>
+        </dl>
+      </Card>
 
-        <section className="card p-5">
-          <h2 className="display text-2xl">Last 6 months</h2>
-          <div className="mt-4 flex h-48 items-end gap-3" role="img" aria-label="Requests and enrollments per month">
-            {months.map((m) => (
-              <div key={m.key} className="flex flex-1 flex-col items-center gap-1">
-                <div className="flex w-full flex-1 items-end justify-center gap-1">
-                  <div className="w-1/2 rounded-t bg-steel" style={{ height: `${(m.requested / maxMonth) * 100}%` }} title={`${m.requested} requests`} />
-                  <div className="w-1/2 rounded-t bg-stage-won" style={{ height: `${(m.enrolled / maxMonth) * 100}%` }} title={`${m.enrolled} enrolled`} />
-                </div>
-                <div className="text-xs text-slate-brand">{m.label}</div>
-                <div className="text-[11px] tabular-nums">{m.requested}/{m.enrolled}</div>
-              </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card eyebrow="Class performance" title="Enrollment rate by class"
+          action={classes.length > 5 ? <Link href={href({ all: !showAll })} className="text-sm font-semibold text-navy hover:underline">{showAll ? 'Show top 5' : 'View all'}</Link> : undefined}>
+          {classes.length === 0 ? <p className="text-sm text-slate-brand">No requests in this range.</p> : (
+            <ul className="space-y-4">
+              {(showAll ? classes : classes.slice(0, 5)).map((c) => (
+                <li key={c.name} className="grid grid-cols-[minmax(0,10rem)_1fr_3rem] items-center gap-4">
+                  <div className="min-w-0"><div className="truncate text-sm font-semibold">{c.name}</div><div className="text-xs text-slate-brand">{c.enrolled} enrolled · {c.requested} requests</div></div>
+                  <div className="h-2.5 rounded-full bg-[#eef1f6]"><div className="h-2.5 rounded-full bg-[#3f8a85]" style={{ width: `${(c.rate ?? 0) * 100}%` }} /></div>
+                  <div className="text-right text-sm font-semibold tabular-nums">{pct(c.rate)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card eyebrow="Demand trend" title="Requests per month"
+          action={<span className="flex items-center gap-1.5 text-xs text-slate-brand"><span className="h-2 w-2 rounded-full bg-[#3f8a85]" />Requests</span>}>
+          <svg viewBox={`0 0 ${W} ${H + 18}`} className="h-auto w-full" role="img" aria-label="Requests per month, last six months">
+            <defs>
+              <linearGradient id="area" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="#3f8a85" stopOpacity="0.28" /><stop offset="100%" stopColor="#3f8a85" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {[0, 1, 2, 3, 4].map((g) => {
+              const y = H - PY - (g / 4) * (H - PY * 2);
+              return (
+                <g key={g}>
+                  <line x1={PX} x2={W - PX / 2} y1={y} y2={y} stroke="#e8ecf2" />
+                  <text x={PX - 8} y={y + 3} textAnchor="end" fontSize="9" fill="#8a95a6">{(niceMax * g) / 4}</text>
+                </g>
+              );
+            })}
+            <path d={area} fill="url(#area)" />
+            <path d={line} fill="none" stroke="#3f8a85" strokeWidth="2.5" />
+            {pts.map((q, i) => (
+              <g key={q.m.key}>
+                <circle cx={q.x} cy={q.y} r={i === pts.length - 1 ? 6 : 4.5} fill="#fff" stroke="#3f8a85" strokeWidth="2.5" />
+                <text x={q.x} y={q.y - 11} textAnchor="middle" fontSize="10" fontWeight="600" fill="#1b2433">{q.m.requested}</text>
+                <text x={q.x} y={H + 12} textAnchor="middle" fontSize="10" fill="#5d6578">{q.m.label}</text>
+              </g>
             ))}
-          </div>
-          <p className="mt-3 flex gap-4 text-xs text-slate-brand">
-            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-steel" />Requests</span>
-            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-stage-won" />Enrolled</span>
-          </p>
-        </section>
+          </svg>
+        </Card>
       </div>
 
-      <section className="card overflow-x-auto p-5">
-        <h2 className="display text-2xl">By class</h2>
-        {classes.length === 0 ? <p className="mt-2 text-sm text-slate-brand">No requests in this range.</p> : (
-          <table className="mt-3 w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-slate-brand">
-              <tr><th className="py-2">Class</th><th className="py-2 text-right">Requests</th><th className="py-2 text-right">First days</th><th className="py-2 text-right">Enrolled</th><th className="w-1/3 py-2 pl-4">Enrollment rate</th></tr>
-            </thead>
-            <tbody className="divide-y divide-mist tabular-nums">
-              {classes.map((c) => (
-                <tr key={c.name}>
-                  <td className="py-2 pr-3">{c.name}</td><td className="py-2 text-right">{c.requested}</td>
-                  <td className="py-2 text-right">{c.scheduled}</td><td className="py-2 text-right">{c.enrolled}</td>
-                  <td className="py-2 pl-4"><div className="flex items-center gap-2"><div className="h-2 flex-1 rounded-full bg-paper">
-                    <div className="h-2 rounded-full bg-stage-won" style={{ width: `${(c.rate ?? 0) * 100}%` }} /></div>
-                    <span className="w-10 text-right">{pct(c.rate)}</span></div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
       {gymRows.length > 1 && (
-        <section className="card overflow-x-auto p-5">
-          <h2 className="display text-2xl">Gym comparison</h2>
-          <table className="mt-3 w-full text-sm tabular-nums">
-            <thead className="text-left text-xs uppercase tracking-wider text-slate-brand">
-              <tr><th className="py-2">Gym</th><th className="py-2 text-right">Requests</th><th className="py-2 text-right">Scheduled</th><th className="py-2 text-right">Showed up</th><th className="py-2 text-right">Enrolled</th><th className="py-2 text-right">Rate</th></tr>
-            </thead>
-            <tbody className="divide-y divide-mist">
-              {gymRows.map((r) => (
-                <tr key={r.gym.id} className={r.gym.id === ctx.gym.id ? 'font-semibold' : ''}>
-                  <td className="py-2">{r.gym.short_name}</td><td className="py-2 text-right">{r.requested}</td><td className="py-2 text-right">{r.scheduled}</td>
-                  <td className="py-2 text-right">{r.showed}</td><td className="py-2 text-right">{r.enrolled}</td><td className="py-2 text-right">{pct(r.rate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <Card eyebrow="Side by side" title="Gym comparison" action={<span className="text-xs text-slate-brand">{rangeLabel}</span>}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead className="text-left text-[11px] font-bold uppercase tracking-[0.1em] text-slate-brand">
+                <tr><th className="py-2">Gym</th><th className="py-2 text-right">Requests</th><th className="py-2 text-right">Scheduled</th><th className="py-2 text-right">Showed up</th><th className="py-2 text-right">Enrolled</th><th className="py-2 text-right">Rate</th></tr>
+              </thead>
+              <tbody className="divide-y divide-[#edf0f4]">
+                {gymRows.map((r) => (
+                  <tr key={r.gym.id} className={r.gym.id === ctx.gym.id ? 'font-semibold' : ''}>
+                    <td className="py-2.5">{r.gym.short_name}</td><td className="py-2.5 text-right">{r.requested}</td><td className="py-2.5 text-right">{r.scheduled}</td>
+                    <td className="py-2.5 text-right">{r.showed}</td><td className="py-2.5 text-right">{r.enrolled}</td><td className="py-2.5 text-right">{pct(r.rate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   );

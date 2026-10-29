@@ -18,9 +18,13 @@ export function funnel(trials: T[]): Funnel {
   };
 }
 
-export function inLastDays(trials: T[], today: string, days: number, tz: string) {
-  const since = addDays(today, -days);
-  return trials.filter((t) => ymdInZone(new Date(t.received_at), tz) > since);
+export function inLastDays<X extends Pick<T, 'received_at'>>(trials: X[], today: string, days: number, tz: string, offsetDays = 0): X[] {
+  const end = addDays(today, -offsetDays);
+  const since = addDays(end, -days);
+  return trials.filter((t) => {
+    const d = ymdInZone(new Date(t.received_at), tz);
+    return d > since && d <= end;
+  });
 }
 
 export function byClass(trials: T[]) {
