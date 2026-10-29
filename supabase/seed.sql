@@ -1,7 +1,7 @@
 -- Gym Stars Hub · starting data
 -- Run once in Supabase → SQL Editor after 0001_init.sql.
 -- Then add yourself in Supabase → Authentication → Users → "Add user" (use your email),
--- and run the "make me owner" block at the bottom with that email.
+-- and run the "make me a manager" block at the bottom with that email.
 
 insert into public.gyms (slug, name, short_name, phone, email, from_email, address, website, brand_color)
 values
@@ -62,7 +62,7 @@ We hope to see {{child_first}} back in the gym soon!$$, false),
 ) as t(key, channel, subject, body, auto_send)
 on conflict (gym_id, key, channel) do nothing;
 
--- ── Make yourself the owner of both gyms ──
+-- ── Make yourself a manager of both gyms (role "owner" = Manager in the app) ──
 -- Replace the email below with the one you added in Authentication → Users.
 -- insert into public.memberships (gym_id, user_id, role, display_name)
 -- select g.id, u.id, 'owner', 'Emily'

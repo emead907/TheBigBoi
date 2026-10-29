@@ -17,7 +17,7 @@ export default function LoginPage({ searchParams }: { searchParams: { next?: str
           )}
           <LoginForm next={searchParams.next} />
         </div>
-        <p className="mt-4 text-center text-xs text-slate-brand">Staff only. Ask a gym owner for an invite.</p>
+        <p className="mt-4 text-center text-xs text-slate-brand">Staff only. Ask a gym manager for an invite.</p>
       </div>
     </main>
   );

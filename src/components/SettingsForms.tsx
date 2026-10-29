@@ -109,7 +109,7 @@ export function StaffPanel({ slug, me, members, gyms, currentGymId }: {
         {members.map((m) => (
           <li key={m.user_id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
             <div className="min-w-0 flex-1"><div className="font-semibold">{m.display_name || m.email}</div><div className="text-xs text-slate-brand">{m.email}</div></div>
-            <span className="chip bg-navy-50 text-navy">{m.role === 'owner' ? 'Owner' : 'Staff'}</span>
+            <span className="chip bg-navy-50 text-navy">{m.role === 'owner' ? 'Manager' : 'Staff'}</span>
             {m.user_id !== me && (
               <button className="text-xs font-semibold text-red-700 hover:underline" disabled={pending}
                 onClick={() => { if (window.confirm(`Remove ${m.display_name || m.email} from this gym?`)) run(() => removeStaff(slug, m.user_id)); }}>Remove</button>
@@ -121,7 +121,7 @@ export function StaffPanel({ slug, me, members, gyms, currentGymId }: {
         <div className="sm:col-span-2"><label htmlFor="s-email" className="label">Email</label><input id="s-email" name="email" type="email" required className="input" /></div>
         <div><label htmlFor="s-name" className="label">Name</label><input id="s-name" name="display_name" className="input" placeholder="Amanda" /></div>
         <div><label htmlFor="s-role" className="label">Role</label>
-          <select id="s-role" name="role" className="input"><option value="staff">Staff</option><option value="owner">Owner</option></select></div>
+          <select id="s-role" name="role" className="input"><option value="staff">Staff</option><option value="owner">Manager</option></select></div>
         {gyms.length > 1 && (
           <fieldset className="flex flex-wrap gap-4 sm:col-span-4">
             <legend className="label">Gyms</legend>
@@ -133,7 +133,7 @@ export function StaffPanel({ slug, me, members, gyms, currentGymId }: {
           </fieldset>
         )}
         <div className="flex items-center gap-3 sm:col-span-4"><button className="btn-primary" disabled={pending}>Send invite</button>{note}</div>
-        <p className="text-xs text-slate-brand sm:col-span-4">Staff can use the board, add requests and send messages. Owners can also change settings and messages, and manage staff.</p>
+        <p className="text-xs text-slate-brand sm:col-span-4">Staff can use the board, add requests and send messages. Managers can also change settings and messages, and manage staff.</p>
       </form>
     </section>
   );

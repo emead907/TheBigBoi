@@ -54,7 +54,7 @@ export default function SendPanel({ slug, trialId, options, suggested = 'spot_re
             {o.subject && <div className="mb-2 text-sm font-semibold text-navy">{o.subject}</div>}
             <p className="whitespace-pre-line text-[#3b4658]">{o.body}</p>
           </div>
-        ) : <p className="mt-2 text-xs text-slate-brand">No {channel === 'email' ? 'email' : 'text'} template for this yet. An owner can add one in Settings.</p>}
+        ) : <p className="mt-2 text-xs text-slate-brand">No {channel === 'email' ? 'email' : 'text'} template for this yet. A manager can add one in Settings.</p>}
       </div>
 
       {o?.blocked && <p className="mt-3 rounded-lg bg-[#fff6e5] px-3 py-2 text-xs text-[#8a5300]">{o.blocked}</p>}

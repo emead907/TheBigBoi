@@ -18,7 +18,7 @@ export default async function GymLayout({ children, params }: { children: React.
           <GymSwitcher gyms={ctx.gyms.map((g) => ({ slug: g.slug, name: g.short_name }))} current={ctx.gym.slug} />
           <div className="ml-auto flex items-center gap-4">
             <NavLinks slug={ctx.gym.slug} isOwner={ctx.role === 'owner'} />
-            <UserMenu name={ctx.actor} role={ctx.role === 'owner' ? 'Owner' : 'Staff'} />
+            <UserMenu name={ctx.actor} role={ctx.role === 'owner' ? 'Manager' : 'Staff'} />
           </div>
         </div>
       </header>

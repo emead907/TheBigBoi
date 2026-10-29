@@ -122,7 +122,7 @@ export async function createTrials(slug: string, form: FormData): Promise<Action
 
 export async function deleteTrial(slug: string, id: string): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
-  if (ctx.role !== 'owner') return { ok: false, error: 'Only gym owners can delete requests.' };
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can delete requests.' };
   const { error } = await createClient().from('trials').delete().eq('id', id).eq('gym_id', ctx.gym.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/${slug}`, 'layout');
@@ -133,7 +133,7 @@ export async function deleteTrial(slug: string, id: string): Promise<ActionResul
 
 export async function saveTemplate(slug: string, key: TemplateKey, channel: Channel, form: FormData): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
-  if (ctx.role !== 'owner') return { ok: false, error: 'Only gym owners can edit messages.' };
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can edit messages.' };
   const { error } = await createClient().from('templates').upsert({
     gym_id: ctx.gym.id, key, channel,
     subject: channel === 'email' ? String(form.get('subject') ?? '') : null,
@@ -148,7 +148,7 @@ export async function saveTemplate(slug: string, key: TemplateKey, channel: Chan
 
 export async function saveGym(slug: string, form: FormData): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
-  if (ctx.role !== 'owner') return { ok: false, error: 'Only gym owners can change gym settings.' };
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can change gym settings.' };
   const s = (k: string) => String(form.get(k) ?? '').trim() || null;
   const { error } = await createClient().from('gyms').update({
     name: s('name') ?? ctx.gym.name, short_name: s('short_name') ?? ctx.gym.short_name,
@@ -162,7 +162,7 @@ export async function saveGym(slug: string, form: FormData): Promise<ActionResul
 
 export async function rotateIntakeKey(slug: string): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
-  if (ctx.role !== 'owner') return { ok: false, error: 'Only gym owners can do this.' };
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can do this.' };
   const key = Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => b.toString(16).padStart(2, '0')).join('');
   const { error } = await createClient().from('gyms').update({ intake_key: key }).eq('id', ctx.gym.id);
   if (error) return { ok: false, error: error.message };
@@ -172,7 +172,7 @@ export async function rotateIntakeKey(slug: string): Promise<ActionResult> {
 
 export async function inviteStaff(slug: string, form: FormData): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
-  if (ctx.role !== 'owner') return { ok: false, error: 'Only gym owners can invite staff.' };
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can invite staff.' };
   const email = String(form.get('email') ?? '').trim().toLowerCase();
   const name = String(form.get('display_name') ?? '').trim() || null;
   const role = form.get('role') === 'owner' ? 'owner' : 'staff';
@@ -202,7 +202,7 @@ export async function inviteStaff(slug: string, form: FormData): Promise<ActionR
 
 export async function removeStaff(slug: string, userId: string): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
-  if (ctx.role !== 'owner') return { ok: false, error: 'Only gym owners can remove staff.' };
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can remove staff.' };
   if (userId === ctx.userId) return { ok: false, error: "You can't remove yourself." };
   const { error } = await createAdminClient().from('memberships').delete().eq('gym_id', ctx.gym.id).eq('user_id', userId);
   if (error) return { ok: false, error: error.message };

@@ -22,7 +22,7 @@ export default function LoginForm({ next }: { next?: string }) {
     if (error) {
       setState('error');
       setError(/signups not allowed|not found/i.test(error.message)
-        ? 'No staff account uses that email. Ask a gym owner to invite you.'
+        ? 'No staff account uses that email. Ask a gym manager to invite you.'
         : error.message);
     } else setState('sent');
   }
@@ -42,7 +42,7 @@ export default function LoginForm({ next }: { next?: string }) {
       <div>
         <label htmlFor="email" className="label">Email</label>
         <input id="email" type="email" required autoComplete="email" className="input"
-          value={email} onChange={(e) => setEmail(e.target.value)} placeholder="The email your gym owner invited" />
+          value={email} onChange={(e) => setEmail(e.target.value)} placeholder="The email your gym manager invited" />
       </div>
       {state === 'error' && <p className="text-sm text-red-700">{error}</p>}
       <button className="btn-primary w-full" disabled={state === 'sending'}>
