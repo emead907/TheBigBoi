@@ -21,7 +21,7 @@ export default async function BoardPage({ params, searchParams }: { params: { gy
     .limit(1000);
 
   const trials = ((data ?? []) as Trial[]).map((t) => ({ ...t, stage: stageOf(t, ctx.today) as Stage }));
-  const stage = (['new', 'upcoming', 'today', 'follow_up', 'enrolled', 'closed'] as Stage[]).includes(searchParams.stage as Stage)
+  const stage = (['waitlist', 'new', 'upcoming', 'today', 'follow_up', 'enrolled', 'closed'] as Stage[]).includes(searchParams.stage as Stage)
     ? (searchParams.stage as Stage)
     : trials.some((t) => t.stage === 'today') ? 'today' : 'new';
 

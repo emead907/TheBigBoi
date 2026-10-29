@@ -18,11 +18,11 @@ export default async function ReportsPage({ params, searchParams }: { params: { 
   const supabase = createClient();
   const { data } = await supabase
     .from('trials')
-    .select('gym_id, received_at, first_day, showed_up, status, class_name, spot_email_sent_at, closed_at')
+    .select('gym_id, received_at, first_day, showed_up, status, class_name, requested_time, spot_email_sent_at, closed_at, waitlisted_at, offered_at')
     .in('gym_id', ctx.gyms.map((g) => g.id))
     .gte('received_at', addDays(ctx.today, -800))
     .limit(20000);
-  type R = Pick<Trial, 'gym_id' | 'received_at' | 'first_day' | 'showed_up' | 'status' | 'class_name' | 'spot_email_sent_at' | 'closed_at'>;
+  type R = Pick<Trial, 'gym_id' | 'received_at' | 'first_day' | 'showed_up' | 'status' | 'class_name' | 'requested_time' | 'spot_email_sent_at' | 'closed_at' | 'waitlisted_at' | 'offered_at'>;
   const all = (data ?? []) as R[];
   const mine = all.filter((t) => t.gym_id === ctx.gym.id);
   const tz = ctx.gym.timezone;
@@ -36,6 +36,18 @@ export default async function ReportsPage({ params, searchParams }: { params: { 
   const months = byMonth(mine, ctx.today, tz, 6);
   const gymRows = ctx.gyms.map((g) => ({ gym: g, ...funnel(inLastDays(all.filter((t) => t.gym_id === g.id), ctx.today, days, g.timezone)) }));
   const rangeLabel = RANGES.find((r) => r.d === days)!.l;
+
+  // Who is waiting right now, by class and time.
+  const waiting = mine.filter((t) => t.status === 'open' && t.waitlisted_at && !t.offered_at && !t.first_day);
+  const waitGroups = [...waiting.reduce((m, t) => {
+    const k = [t.class_name || 'No class listed', t.requested_time].filter(Boolean).join(' · ');
+    const days = Math.floor((Date.now() - Date.parse(t.waitlisted_at!)) / 86_400_000);
+    const g = m.get(k) ?? { name: k, count: 0, longest: 0 };
+    g.count++; g.longest = Math.max(g.longest, days);
+    return m.set(k, g);
+  }, new Map<string, { name: string; count: number; longest: number }>()).values()].sort((a, b) => b.count - a.count || b.longest - a.longest);
+  const offered = inLastDays(mine.filter((t) => t.offered_at), ctx.today, days, tz);
+  const offeredEnrolled = offered.filter((t) => t.status === 'enrolled').length;
 
   const delta = (now: number | null, before: number | null, isRate = false) => {
     if (now == null || before == null || (!isRate && before === 0)) return null;
@@ -179,6 +191,29 @@ export default async function ReportsPage({ params, searchParams }: { params: { 
           </svg>
         </Card>
       </div>
+
+      <Card eyebrow="Demand you can't serve yet" title="Waitlist"
+        action={<Link href={`/${ctx.gym.slug}?stage=waitlist`} className="text-sm font-semibold text-navy hover:underline">Open waitlist</Link>}>
+        <div className="mb-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+          <div><div className="text-xs text-slate-brand">Families waiting now</div><div className="font-display text-4xl leading-none text-navy">{waiting.length}</div></div>
+          <div><div className="text-xs text-slate-brand">Classes with a waitlist</div><div className="font-display text-4xl leading-none text-navy">{waitGroups.length}</div></div>
+          <div><div className="text-xs text-slate-brand">Spots offered from the waitlist ({rangeLabel.toLowerCase()})</div><div className="font-display text-4xl leading-none text-navy">{offered.length}<span className="ml-2 align-middle font-sans text-xs font-semibold text-stage-won">{offeredEnrolled} enrolled</span></div></div>
+        </div>
+        {waitGroups.length === 0 ? <p className="text-sm text-slate-brand">Nobody is on a waitlist right now.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead className="text-left text-[11px] font-bold uppercase tracking-[0.1em] text-slate-brand">
+                <tr><th className="py-2">Class</th><th className="py-2 text-right">Waiting</th><th className="py-2 text-right">Longest wait</th></tr>
+              </thead>
+              <tbody className="divide-y divide-[#edf0f4]">
+                {waitGroups.map((g) => (
+                  <tr key={g.name}><td className="py-2.5 pr-3">{g.name}</td><td className="py-2.5 text-right font-semibold">{g.count}</td><td className="py-2.5 text-right">{g.longest === 0 ? 'Today' : `${g.longest} day${g.longest === 1 ? '' : 's'}`}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {gymRows.length > 1 && (
         <Card eyebrow="Side by side" title="Gym comparison" action={<span className="text-xs text-slate-brand">{rangeLabel}</span>}>

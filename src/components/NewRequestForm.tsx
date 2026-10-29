@@ -76,9 +76,14 @@ export default function NewRequestForm({ slug }: { slug: string }) {
               <option value="walk_in">Walk-in</option><option value="website">Website</option>
             </select>
           </div>
-          <label htmlFor="n-sms" className="flex items-end gap-2 pb-2 text-sm">
-            <input id="n-sms" name="sms_opt_in" type="checkbox" className="h-4 w-4 accent-navy" /> Family agreed to texts
-          </label>
+          <div className="flex flex-col justify-end gap-2 pb-2 text-sm">
+            <label htmlFor="n-sms" className="flex items-center gap-2">
+              <input id="n-sms" name="sms_opt_in" type="checkbox" className="h-4 w-4 accent-navy" /> Family agreed to texts
+            </label>
+            <label htmlFor="n-wait" className="flex items-center gap-2">
+              <input id="n-wait" name="waitlist" type="checkbox" className="h-4 w-4 accent-navy" /> Class is full: add to the waitlist
+            </label>
+          </div>
         </div>
         <div>
           <label htmlFor="n-notes" className="label">Notes</label>

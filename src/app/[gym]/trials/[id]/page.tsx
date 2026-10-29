@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
-import { stageOf } from '@/lib/stages';
+import { stageOf, waitlistPositions } from '@/lib/stages';
 import { ageOn, formatDateTime, formatDay } from '@/lib/dates';
 import type { Activity, Template, Trial } from '@/lib/types';
 import { renderTemplate, templateVars } from '@/lib/templates';
@@ -10,7 +10,7 @@ import { channelReady, recipientProblem, TEMPLATE_LABEL } from '@/lib/messaging'
 import SendPanel from '@/components/SendPanel';
 import { Avatar, Card, splitClass } from '@/components/ui';
 import { ArrowLeft, Calendar, Check, Mail, Message, Note, Phone, UserPlus } from '@/components/icons';
-import { ChecklistCard, FamilyCard, FirstDayCard, NotesCard, StatusSelect, type CheckItem } from '@/components/TrialDetail';
+import { ChecklistCard, FamilyCard, FirstDayCard, NotesCard, StatusSelect, WaitlistCard, type CheckItem } from '@/components/TrialDetail';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +55,7 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
   ];
   const current = steps.findIndex((s) => !s.done);
   const closed = trial.status === 'not_enrolling' || trial.status === 'no_show';
-  const badge = closed ? (trial.status === 'no_show' ? 'No-show' : 'Not enrolling') : trial.status === 'enrolled' ? 'Enrolled' : 'In progress';
+  const badge = closed ? (trial.status === 'no_show' ? 'No-show' : 'Not enrolling') : trial.status === 'enrolled' ? 'Enrolled' : stage === 'waitlist' ? 'Waitlist' : 'In progress';
 
   const checklist: CheckItem[] = [
     { id: 'in_sportsengine', label: 'Added to SportsEngine', done: trial.in_sportsengine, sub: trial.in_sportsengine ? `Completed by ${by(/SportsEngine/, null)}` : 'Add the family before their first day' },
@@ -81,6 +81,18 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
 
   const notesBy = activity.find((a) => a.detail === 'Updated notes');
 
+  // Waitlist position among families waiting for the same class and time.
+  let waitPos: number | null = null;
+  let waitTotal = 0;
+  if (stage === 'waitlist') {
+    const { data: peers } = await supabase.from('trials').select('id, class_name, requested_time, waitlisted_at')
+      .eq('gym_id', ctx.gym.id).eq('status', 'open').is('offered_at', null).is('first_day', null)
+      .not('waitlisted_at', 'is', null).eq('class_name', trial.class_name ?? '');
+    const same = (peers ?? []).filter((p) => (p.requested_time ?? '') === (trial.requested_time ?? ''));
+    waitPos = waitlistPositions(same)[trial.id] ?? null;
+    waitTotal = same.length;
+  }
+
   return (
     <div className="space-y-6">
       <Link href={`/${ctx.gym.slug}?stage=${stage}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy hover:underline">
@@ -101,6 +113,9 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-5">
+          <WaitlistCard slug={ctx.gym.slug} trial={trial} onList={stage === 'waitlist'} position={waitPos} total={waitTotal}
+            since={trial.waitlisted_at ? formatDateTime(trial.waitlisted_at, tz) : ''} canAdd={stage === 'new'} />
+
           <Card eyebrow="Enrollment journey" title="Stage progress"
             action={<span className={`chip ${closed ? 'bg-[#eef0f3] text-[#5b6472]' : trial.status === 'enrolled' ? 'bg-[#e3f3e9] text-stage-won' : 'bg-navy-50 text-navy'} text-[10px] uppercase tracking-wider`}>{badge}</span>}>
             <ol className="flex items-start" aria-label="Progress">

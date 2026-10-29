@@ -16,7 +16,7 @@ export type ActionResult = { ok: true; message?: string } | { ok: false; error: 
 const EDITABLE = [
   'child_name', 'birthday', 'class_name', 'requested_time', 'parent_name', 'parent_email', 'parent_phone',
   'zip', 'sms_opt_in', 'in_sportsengine', 'spot_email_sent_at', 'called_at', 'first_day', 'first_day_time',
-  'showed_up', 'status', 'followed_up_at', 'notes',
+  'showed_up', 'status', 'followed_up_at', 'notes', 'waitlisted_at', 'offered_at',
 ] as const;
 type Editable = (typeof EDITABLE)[number];
 export type TrialPatch = Partial<Pick<Trial, Editable>>;
@@ -33,6 +33,8 @@ function describe(patch: TrialPatch): string[] {
   if (has('status')) out.push(`Status: ${STATUS_LABEL[patch.status as TrialStatus]}`);
   if (has('followed_up_at')) out.push(patch.followed_up_at ? 'Marked followed up' : 'Unchecked followed up');
   if (has('sms_opt_in')) out.push(patch.sms_opt_in ? 'Family agreed to texts' : 'Texts turned off');
+  if (has('waitlisted_at')) out.push(patch.waitlisted_at ? 'Added to the waitlist' : 'Removed from the waitlist');
+  if (has('offered_at') && patch.offered_at) out.push('Spot offered from the waitlist');
   if (has('notes')) out.push('Updated notes');
   const info = (['child_name', 'birthday', 'class_name', 'requested_time', 'parent_name', 'parent_email', 'parent_phone', 'zip'] as Editable[]).filter(has);
   if (info.length) out.push('Updated family details');
@@ -104,6 +106,7 @@ export async function createTrials(slug: string, form: FormData): Promise<Action
       zip: s('zip') || null,
       sms_opt_in: form.get('sms_opt_in') === 'on',
       notes: s('notes') || null,
+      waitlisted_at: form.get('waitlist') === 'on' ? new Date().toISOString() : null,
       updated_by: ctx.userId,
     }))
     .filter((r) => r.child_name);

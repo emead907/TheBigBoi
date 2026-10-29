@@ -53,6 +53,8 @@ export interface Trial {
   closed_at: string | null;
   notes: string | null;
   reminder_sent_at: string | null;
+  waitlisted_at: string | null;
+  offered_at: string | null;
   followup_sent_at: string | null;
   external_id: string | null;
   created_at: string;

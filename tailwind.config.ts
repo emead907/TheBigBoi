@@ -12,6 +12,7 @@ const config: Config = {
         mist: '#DEDEE2',
         paper: '#f4f5f8',
         stage: {
+          wait: '#b07d1a',
           new: '#004380',
           upcoming: '#2f86a3',
           today: '#d9772f',

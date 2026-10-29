@@ -87,3 +87,20 @@ describe('reports', () => {
     expect(f).toMatchObject({ requested: 3, scheduled: 2, showed: 1, enrolled: 1, decided: 2, rate: 0.5 });
   });
 });
+
+import { waitlistPositions } from '@/lib/stages';
+describe('waitlist', () => {
+  it('puts waitlisted trials in their own stage until a spot is offered', () => {
+    expect(stageOf({ status: 'open', first_day: null, waitlisted_at: '2026-10-01T00:00:00Z', offered_at: null }, '2026-10-28')).toBe('waitlist');
+    expect(stageOf({ status: 'open', first_day: null, waitlisted_at: '2026-10-01T00:00:00Z', offered_at: '2026-10-28T00:00:00Z' }, '2026-10-28')).toBe('new');
+    expect(stageOf({ status: 'not_enrolling', first_day: null, waitlisted_at: '2026-10-01T00:00:00Z', offered_at: null }, '2026-10-28')).toBe('closed');
+  });
+  it('numbers families per class and time, oldest first', () => {
+    const p = waitlistPositions([
+      { id: 'a', class_name: 'Tiny Stars', requested_time: 'Wed 10:30', waitlisted_at: '2026-10-05' },
+      { id: 'b', class_name: 'Tiny Stars', requested_time: 'Wed 10:30', waitlisted_at: '2026-10-01' },
+      { id: 'c', class_name: 'Ninja', requested_time: 'Mon 4:30', waitlisted_at: '2026-10-09' },
+    ]);
+    expect(p).toEqual({ b: 1, a: 2, c: 1 });
+  });
+});

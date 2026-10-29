@@ -202,3 +202,48 @@ export function NotesCard({ slug, trial, lastUpdated }: { slug: string; trial: T
     </Card>
   );
 }
+
+export function WaitlistCard({ slug, trial, onList, position, total, since, canAdd }: {
+  slug: string; trial: Trial; onList: boolean; position: number | null; total: number; since: string; canAdd: boolean;
+}) {
+  const { save, pending, note } = useSave(slug, trial.id);
+  if (!onList && !canAdd) return null;
+  if (!onList) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-[#d6dce5] px-5 py-3">
+        <span className="text-sm text-slate-brand">Class is full? Put this family on the waitlist and offer them the next spot.</span>
+        <div className="flex items-center gap-3">{note}
+          <button type="button" className="btn-ghost rounded-xl" disabled={pending}
+            onClick={() => save({ waitlisted_at: new Date().toISOString(), offered_at: null }, 'Added to the waitlist.')}>Move to waitlist</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <section className="rounded-2xl border border-[#ecd9ae] bg-[#fdf8ec] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white font-display text-3xl text-stage-wait shadow-sm">#{position ?? '–'}</span>
+          <div>
+            <div className="eyebrow text-[10px] text-stage-wait">On the waitlist</div>
+            <div className="display text-[26px] leading-none">{position ? `${ordinal(position)} in line` : 'Waiting for a spot'}</div>
+            <div className="mt-1 text-xs text-slate-brand">{total > 1 ? `${total} families waiting for this class · ` : ''}Joined {since}</div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {note}
+          <button type="button" className="btn-ghost rounded-xl" disabled={pending}
+            onClick={() => { if (window.confirm('Take this family off the waitlist and mark them Not enrolling?')) save({ status: 'not_enrolling' }, 'Removed from the waitlist.'); }}>No longer interested</button>
+          <button type="button" className="btn-primary rounded-xl" disabled={pending}
+            onClick={() => save({ offered_at: new Date().toISOString() }, 'Spot offered. They’re in New Requests now. Send the “Spot is ready” message next.')}>Offer spot</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ordinal(n: number) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}

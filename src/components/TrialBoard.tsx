@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Trial } from '@/lib/types';
-import { STAGES, STATUS_LABEL, type Stage } from '@/lib/stages';
+import { STAGES, STATUS_LABEL, waitlistPositions, type Stage } from '@/lib/stages';
 import { ageOn, formatDay } from '@/lib/dates';
 import { updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Avatar, CheckBox, PageHeader, splitClass } from './ui';
@@ -12,7 +12,7 @@ import { Calendar, ChevronRight, Plus, Search } from './icons';
 type Row = Trial & { stage: Stage };
 
 const DOT: Record<Stage, string> = {
-  new: 'bg-stage-new', upcoming: 'bg-stage-upcoming', today: 'bg-stage-today',
+  waitlist: 'bg-stage-wait', new: 'bg-stage-new', upcoming: 'bg-stage-upcoming', today: 'bg-stage-today',
   follow_up: 'bg-stage-follow', enrolled: 'bg-stage-won', closed: 'bg-stage-lost',
 };
 
@@ -28,7 +28,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
     state.map((t) => (t.id === u.id ? ({ ...t, ...u.patch } as Row) : t)));
 
   const counts = useMemo(() => {
-    const c: Record<Stage, number> = { new: 0, upcoming: 0, today: 0, follow_up: 0, enrolled: 0, closed: 0 };
+    const c: Record<Stage, number> = { waitlist: 0, new: 0, upcoming: 0, today: 0, follow_up: 0, enrolled: 0, closed: 0 };
     trials.forEach((t) => c[t.stage]++);
     return c;
   }, [trials]);
@@ -40,8 +40,11 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
       ? rows.filter((t) => [t.child_name, t.parent_name, t.parent_email, t.parent_phone, t.class_name].some((v) => v?.toLowerCase().includes(q)))
       : rows.filter((t) => t.stage === stage);
     if (stage === 'upcoming' && !q) list = [...list].sort((a, b) => (a.first_day ?? '').localeCompare(b.first_day ?? ''));
+    if (stage === 'waitlist' && !q) list = [...list].sort((a, b) =>
+      `${a.class_name ?? ''}|${a.requested_time ?? ''}`.localeCompare(`${b.class_name ?? ''}|${b.requested_time ?? ''}`) || (a.waitlisted_at ?? '').localeCompare(b.waitlisted_at ?? ''));
     return list;
   }, [rows, stage, query]);
+  const positions = useMemo(() => waitlistPositions(rows.filter((t) => t.stage === 'waitlist')), [rows]);
 
   function save(id: string, patch: TrialPatch) {
     setError('');
@@ -135,7 +138,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
                           <div className="text-xs text-slate-brand">{t.parent_phone}</div>
                         </td>
                         <td className="px-3 py-4"><Received iso={t.received_at} timezone={timezone} late={late} /></td>
-                        <Cells t={t} view={view} save={save} />
+                        <Cells t={t} view={view} save={save} pos={positions[t.id]} />
                         <td className="pr-4">
                           <Link href={`/${slug}/trials/${t.id}`} aria-label={`Open ${t.child_name}`} className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa4b4] hover:bg-white hover:text-navy">
                             <ChevronRight className="h-4 w-4" />
@@ -173,7 +176,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
                     {t.parent_phone && <a href={`tel:${t.parent_phone}`} className="btn-ghost rounded-lg px-3 py-1.5 text-xs">{t.parent_phone}</a>}
                   </div>
                   <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-[#edf0f4] px-4 py-3">
-                    <Cells t={t} view={view} save={save} mobile />
+                    <Cells t={t} view={view} save={save} pos={positions[t.id]} mobile />
                   </div>
                 </li>
               );
@@ -186,7 +189,8 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
 }
 
 function isOverdue(t: Row) {
-  return t.stage === 'new' && !t.spot_email_sent_at && Date.now() - Date.parse(t.received_at) > 86_400_000;
+  // Clock starts when the request came in, or when a waitlist spot was offered.
+  return t.stage === 'new' && !t.spot_email_sent_at && Date.now() - Date.parse(t.offered_at ?? t.received_at) > 86_400_000;
 }
 
 function Received({ iso, timezone, late }: { iso: string; timezone: string; late: boolean }) {
@@ -207,6 +211,7 @@ function Received({ iso, timezone, late }: { iso: string; timezone: string; late
 
 function Heads({ view }: { view: Stage | 'search' }) {
   const th = (l: string, c = '') => <th className={`px-3 py-3.5 ${c}`}>{l}</th>;
+  if (view === 'waitlist') return <>{th('Spot in line', 'text-center')}{th('Waiting')}{th('')}</>;
   if (view === 'new') return <>{th('SportsEngine', 'text-center')}{th('Spot email', 'text-center')}{th('Called', 'text-center')}{th('First day')}</>;
   if (view === 'upcoming') return <>{th('First day')}{th('Reminder')}</>;
   if (view === 'today') return <>{th('Time')}{th('Showed up')}</>;
@@ -226,13 +231,26 @@ function DatePill({ t, save }: { t: Row; save: (id: string, p: TrialPatch) => vo
   );
 }
 
-function Cells({ t, view, save, mobile }: { t: Row; view: Stage | 'search'; save: (id: string, p: TrialPatch) => void; mobile?: boolean }) {
+function Cells({ t, view, save, mobile, pos }: { t: Row; view: Stage | 'search'; save: (id: string, p: TrialPatch) => void; mobile?: boolean; pos?: number }) {
   const Cell = ({ children, label, center }: { children: React.ReactNode; label: string; center?: boolean }) =>
     mobile
       ? <div className="flex flex-col items-center gap-1"><span className="eyebrow text-[10px]">{label}</span>{children}</div>
       : <td className={`px-3 py-4 ${center ? 'text-center' : ''}`}>{children}</td>;
   const stamp = (on: boolean) => (on ? new Date().toISOString() : null);
 
+  if (view === 'waitlist') {
+    const days = t.waitlisted_at ? Math.max(0, Math.floor((Date.now() - Date.parse(t.waitlisted_at)) / 86_400_000)) : 0;
+    return (
+      <>
+        <Cell label="Spot in line" center><span className="inline-grid h-8 min-w-8 place-items-center rounded-full bg-[#fbf3e1] px-2 text-sm font-bold text-stage-wait">#{pos ?? '–'}</span></Cell>
+        <Cell label="Waiting"><div className="font-semibold">{days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'}`}</div><div className="text-xs text-slate-brand">since {t.waitlisted_at ? new Date(t.waitlisted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</div></Cell>
+        <Cell label="">
+          <button type="button" onClick={() => save(t.id, { offered_at: new Date().toISOString() })}
+            className="btn-primary whitespace-nowrap rounded-lg px-3 py-1.5 text-xs">Offer spot</button>
+        </Cell>
+      </>
+    );
+  }
   if (view === 'new') return (
     <>
       <Cell label="SportsEngine" center><CheckBox label={`SportsEngine: ${t.child_name}`} checked={t.in_sportsengine} onChange={(v) => save(t.id, { in_sportsengine: v })} /></Cell>

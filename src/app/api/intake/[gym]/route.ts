@@ -6,7 +6,7 @@ import { formatPhone, parseDateLoose } from '@/lib/parse';
 /**
  * Website class-request intake.
  * POST /api/intake/<gym-slug> with header `x-intake-key: <key from Settings>` and JSON (or form) body:
- * { class, requested_time, parent, email, phone, zip, sms_opt_in, children: [{ name, birthday }], id? }
+ * { class, requested_time, parent, email, phone, zip, sms_opt_in, waitlist?, children: [{ name, birthday }], id? }
  * Call it from your website's server code (where the key stays private), not from the browser.
  */
 export async function POST(request: NextRequest, { params }: { params: { gym: string } }) {
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: { gym: st
   if (children.length === 0) return NextResponse.json({ error: 'At least one child name is required.' }, { status: 422 });
   if (children.length > 8) children = children.slice(0, 8);
 
+  const waitlist = body.waitlist === true || body.waitlist === 'true' || body.waitlist === 'on';
   const optIn = body.sms_opt_in === true || body.sms_opt_in === 'true' || body.sms_opt_in === 'on';
   const externalId = s('id', 'external_id');
   const rows = children.map((c, i) => ({
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: { gym: st
     parent_phone: s('phone', 'parent_phone') ? formatPhone(s('phone', 'parent_phone')!) : null,
     zip: s('zip'),
     sms_opt_in: optIn,
+    waitlisted_at: waitlist ? new Date().toISOString() : null,
     notes: s('notes', 'message'),
     external_id: externalId ? `${externalId}-${i + 1}` : null,
   }));
@@ -65,16 +67,16 @@ export async function POST(request: NextRequest, { params }: { params: { gym: st
     // Partial unique index can't be targeted by upsert on some setups; fall back to a plain insert.
     const retry = await db.from('trials').insert(rows).select('id');
     if (retry.error) return NextResponse.json({ error: retry.error.message }, { status: 500 });
-    await logCreated(db, gym.id, retry.data ?? []);
+    await logCreated(db, gym.id, retry.data ?? [], waitlist);
     return NextResponse.json({ ok: true, created: retry.data?.length ?? 0 });
   }
-  await logCreated(db, gym.id, data ?? []);
+  await logCreated(db, gym.id, data ?? [], waitlist);
   return NextResponse.json({ ok: true, created: data?.length ?? 0 });
 }
 
-async function logCreated(db: ReturnType<typeof createAdminClient>, gymId: string, rows: { id: string }[]) {
+async function logCreated(db: ReturnType<typeof createAdminClient>, gymId: string, rows: { id: string }[], waitlist = false) {
   if (!rows.length) return;
-  await db.from('activity').insert(rows.map((r) => ({ gym_id: gymId, trial_id: r.id, actor: 'Website', kind: 'created', detail: 'Request came in from the website' })));
+  await db.from('activity').insert(rows.map((r) => ({ gym_id: gymId, trial_id: r.id, actor: 'Website', kind: 'created', detail: waitlist ? 'Joined the waitlist from the website' : 'Request came in from the website' })));
 }
 
 function safeEqual(a: string, b: string) {
