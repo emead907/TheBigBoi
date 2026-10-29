@@ -25,9 +25,10 @@ Other features: staff logins with an activity log of who did what, email (Resend
 2. **SQL Editor:** paste and run `supabase/migrations/0001_init.sql`, then `supabase/seed.sql`.
 3. **Authentication → Sign In / Providers:** keep Email on, and turn **off** "Allow new users to sign up". Staff get in only by invite.
 4. **Authentication → URL Configuration:** set **Site URL** to your app's address (for example `https://hub.gymstarsidaho.com`) and add `https://hub.gymstarsidaho.com/auth/callback` under Redirect URLs.
-5. **Authentication → Emails:** edit two templates so their links point at the app:
-   - **Magic Link:** `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink">Sign in to Gym Stars Hub</a>`
-   - **Invite user:** `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite">Join Gym Stars Hub</a>`
+5. **Authentication → Emails:** edit these templates so their links point at the app. Staff sign in with email and password; invites and "Forgot password" send them to a page to set one.
+   - **Invite user:** `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite&next=/set-password">Join Gym Stars Hub</a>`
+   - **Reset Password:** `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/set-password">Set a new password</a>`
+   - **Magic Link** (not used by the sign-in page, but harmless to set): `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink">Sign in to Gym Stars Hub</a>`
 6. **Authentication → Users → Add user:** add your own email. Then run the "make me owner" block at the bottom of `seed.sql` with that email.
 7. **Project Settings → API:** copy the URL, the `anon` key and the `service_role` key for step 3.
 

@@ -12,9 +12,12 @@ export default function UserMenu({ name, role }: { name: string; role: string })
         </span>
         <ChevronDown className="h-4 w-4 opacity-80" />
       </summary>
-      <form action="/auth/signout" method="post" className="absolute right-0 mt-2 w-40 rounded-lg border border-mist bg-white p-1 text-navy shadow-lg">
-        <button className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold hover:bg-paper">Sign out</button>
-      </form>
+      <div className="absolute right-0 z-30 mt-2 w-44 rounded-lg border border-mist bg-white p-1 text-navy shadow-lg">
+        <a href="/set-password" className="block rounded-md px-3 py-2 text-sm font-semibold hover:bg-paper">Change password</a>
+        <form action="/auth/signout" method="post">
+          <button className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold hover:bg-paper">Sign out</button>
+        </form>
+      </div>
     </details>
   );
 }

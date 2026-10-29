@@ -1,53 +1,95 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export default function LoginForm({ next }: { next?: string }) {
-  const [email, setEmail] = useState('');
-  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [error, setError] = useState('');
+type Mode = 'password' | 'forgot' | 'sent';
 
-  async function submit(e: React.FormEvent) {
+export default function LoginForm({ next }: { next?: string }) {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const origin = () => process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+  const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+
+  async function signIn(e: React.FormEvent) {
     e.preventDefault();
-    setState('sending');
-    const supabase = createClient();
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `${origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`,
-      },
-    });
+    setBusy(true);
+    setError('');
+    const { error } = await createClient().auth.signInWithPassword({ email: email.trim(), password });
+    setBusy(false);
     if (error) {
-      setState('error');
-      setError(/signups not allowed|not found/i.test(error.message)
-        ? 'No staff account uses that email. Ask a gym manager to invite you.'
+      setError(/invalid login/i.test(error.message)
+        ? "That email and password don't match. Try again, or use \"Forgot password\" to set a new one."
         : error.message);
-    } else setState('sent');
+      return;
+    }
+    router.replace(safeNext);
+    router.refresh();
   }
 
-  if (state === 'sent') {
+  async function sendReset(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    const { error } = await createClient().auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${origin()}/auth/callback?next=/set-password`,
+    });
+    setBusy(false);
+    if (error) setError(error.message);
+    else setMode('sent');
+  }
+
+  if (mode === 'sent') {
     return (
       <div className="text-center">
         <h2 className="display text-2xl">Check your email</h2>
-        <p className="mt-2 text-sm">We sent a sign-in link to <strong>{email}</strong>. Open it on this device.</p>
-        <button className="btn-ghost mt-4" onClick={() => setState('idle')}>Use a different email</button>
+        <p className="mt-2 text-sm">If <strong>{email}</strong> has a staff account, we sent a link to set a new password.</p>
+        <button className="btn-ghost mt-4" onClick={() => setMode('password')}>Back to sign in</button>
       </div>
     );
   }
 
+  const emailField = (
+    <div>
+      <label htmlFor="email" className="label">Email</label>
+      <input id="email" type="email" required autoComplete="username" className="input"
+        value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+    </div>
+  );
+
+  if (mode === 'forgot') {
+    return (
+      <form onSubmit={sendReset} className="space-y-4">
+        <p className="text-sm">Enter your email and we&apos;ll send you a link to set a new password.</p>
+        {emailField}
+        {error && <p className="text-sm text-red-700">{error}</p>}
+        <button className="btn-primary w-full" disabled={busy}>{busy ? 'Sending…' : 'Email me a reset link'}</button>
+        <button type="button" className="w-full text-sm font-semibold text-navy hover:underline" onClick={() => { setMode('password'); setError(''); }}>
+          Back to sign in
+        </button>
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={signIn} className="space-y-4">
+      {emailField}
       <div>
-        <label htmlFor="email" className="label">Email</label>
-        <input id="email" type="email" required autoComplete="email" className="input"
-          value={email} onChange={(e) => setEmail(e.target.value)} placeholder="The email your gym manager invited" />
+        <div className="flex items-baseline justify-between">
+          <label htmlFor="password" className="label">Password</label>
+          <button type="button" className="text-xs font-semibold text-navy hover:underline" onClick={() => { setMode('forgot'); setError(''); }}>
+            Forgot password?
+          </button>
+        </div>
+        <input id="password" type="password" required autoComplete="current-password" className="input"
+          value={password} onChange={(e) => setPassword(e.target.value)} />
       </div>
-      {state === 'error' && <p className="text-sm text-red-700">{error}</p>}
-      <button className="btn-primary w-full" disabled={state === 'sending'}>
-        {state === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
-      </button>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <button className="btn-primary w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
     </form>
   );
 }

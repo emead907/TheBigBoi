@@ -183,7 +183,7 @@ export async function inviteStaff(slug: string, form: FormData): Promise<ActionR
   const admin = createAdminClient();
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? '';
   let userId: string | null = null;
-  const invited = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${origin}/auth/callback` });
+  const invited = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${origin}/auth/callback?next=/set-password` });
   if (invited.data.user) userId = invited.data.user.id;
   else {
     // Already has an account (for example, works at the other gym).
