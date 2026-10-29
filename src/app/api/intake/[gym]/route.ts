@@ -57,7 +57,8 @@ export async function POST(request: NextRequest, { params }: { params: { gym: st
     parent_phone: s('phone', 'parent_phone') ? formatPhone(s('phone', 'parent_phone')!) : null,
     zip: s('zip'),
     sms_opt_in: optIn,
-    waitlisted_at: waitlist ? new Date().toISOString() : null,
+    // Only send the waitlist column when needed, so intake keeps working before migration 0002 is run.
+    ...(waitlist ? { waitlisted_at: new Date().toISOString() } : {}),
     notes: s('notes', 'message'),
     external_id: externalId ? `${externalId}-${i + 1}` : null,
   }));

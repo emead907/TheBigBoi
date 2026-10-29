@@ -17,6 +17,7 @@ export interface Gym {
   website: string | null;
   timezone: string;
   brand_color: string;
+  accent_color: string;
   intake_key: string;
 }
 

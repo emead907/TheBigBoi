@@ -6,7 +6,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy: { DEFAULT: '#004380', 700: '#00356a', 50: '#e8eef6' },
+        // Brand color comes from the current gym (see app/[gym]/layout.tsx); Gym Stars navy by default.
+        navy: { DEFAULT: 'rgb(var(--brand) / <alpha-value>)', 700: 'rgb(var(--brand-700) / <alpha-value>)', 50: 'rgb(var(--brand-50) / <alpha-value>)' },
+        accent: 'rgb(var(--accent) / <alpha-value>)',
         slate: { brand: '#4F6D8A' },
         steel: '#96ABBD',
         mist: '#DEDEE2',

@@ -33,6 +33,14 @@ export function GymForm({ slug, gym }: { slug: string; gym: Gym }) {
             <input id={`g-${k}`} name={k} className="input" defaultValue={(gym[k] as string) ?? ''} placeholder={ph} />
           </div>
         ))}
+        <div className="flex gap-6 sm:col-span-2">
+          {([['brand_color', 'Main color (header, buttons)'], ['accent_color', 'Accent color (highlights)']] as const).map(([k, l]) => (
+            <label key={k} htmlFor={`g-${k}`} className="flex items-center gap-3 text-sm">
+              <input id={`g-${k}`} name={k} type="color" defaultValue={(gym as unknown as Record<string, string>)[k] ?? '#004380'} className="h-9 w-12 cursor-pointer rounded border border-mist" />
+              <span className="font-semibold text-slate-brand">{l}</span>
+            </label>
+          ))}
+        </div>
         <p className="text-xs text-slate-brand sm:col-span-2">The &ldquo;send from&rdquo; address must use a domain you&apos;ve verified in Resend (for example gymstarsidaho.com). Parent replies go to the reply-to email.</p>
         <div className="flex items-center gap-3 sm:col-span-2"><button className="btn-primary" disabled={pending}>Save</button>{note}</div>
       </form>

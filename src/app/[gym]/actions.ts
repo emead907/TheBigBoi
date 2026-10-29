@@ -157,6 +157,8 @@ export async function saveGym(slug: string, form: FormData): Promise<ActionResul
     name: s('name') ?? ctx.gym.name, short_name: s('short_name') ?? ctx.gym.short_name,
     phone: s('phone'), email: s('email'), from_email: s('from_email'), sms_from: s('sms_from'),
     address: s('address'), website: s('website'),
+    ...(/^#[0-9a-f]{6}$/i.test(s('brand_color') ?? '') ? { brand_color: s('brand_color') } : {}),
+    ...(/^#[0-9a-f]{6}$/i.test(s('accent_color') ?? '') ? { accent_color: s('accent_color') } : {}),
   }).eq('id', ctx.gym.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/${slug}`, 'layout');

@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+  :root { --brand: 0 67 128; --brand-700: 0 53 106; --brand-50: 232 238 246; --accent: 127 192 212; }
   body { @apply bg-[#f3f5f9] text-[#1b2433] font-sans antialiased; }
   h1, h2, h3 { text-wrap: balance; }
   :focus-visible { outline: 2px solid #004380; outline-offset: 2px; }
