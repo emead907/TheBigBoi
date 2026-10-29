@@ -40,9 +40,9 @@ export default function LoginForm({ next }: { next?: string }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label htmlFor="email" className="label">Work email</label>
+        <label htmlFor="email" className="label">Email</label>
         <input id="email" type="email" required autoComplete="email" className="input"
-          value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@gymstarsidaho.com" />
+          value={email} onChange={(e) => setEmail(e.target.value)} placeholder="The email your gym owner invited" />
       </div>
       {state === 'error' && <p className="text-sm text-red-700">{error}</p>}
       <button className="btn-primary w-full" disabled={state === 'sending'}>
