@@ -122,3 +122,26 @@ describe('parties', () => {
     expect(conflicts({ id: 'a', party_date: '2026-11-07', time_slot: '1:00 – 2:30 PM' }, all)).toHaveLength(0);
   });
 });
+
+import { parsePartyEmail } from '@/lib/parties';
+it('reads a party request email', () => {
+  const p = parsePartyEmail(`Party request: 2026-12-13 — Aubrea J Patterson
+Check availability and call to confirm.
+
+Requested by: Aubrea J Patterson
+Email: pattersonaubrea@gmail.com
+Phone: 2089220887
+
+Date: 2026-12-13
+Start time: 11:00 AM – 12:30 PM
+Kids attending: 10
+Ages: 7-10
+Theme: Blue and red
+Add-ons: Goodie Bags, Pizza
+
+Comments:
+Can we bring a cake?`);
+  expect(p).toMatchObject({ parent_name: 'Aubrea J Patterson', parent_email: 'pattersonaubrea@gmail.com', parent_phone: '2089220887',
+    party_date: '2026-12-13', time_slot: '11:00 AM – 12:30 PM', num_children: '10', children_ages: '7-10', theme: 'Blue and red',
+    add_ons: ['Goodie Bags', 'Pizza'], comments: 'Can we bring a cake?' });
+});

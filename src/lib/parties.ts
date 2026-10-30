@@ -50,3 +50,30 @@ export function conflicts(p: Pick<Party, 'id' | 'party_date' | 'time_slot'>, all
 
 export const balance = (p: Pick<Party, 'total_price' | 'amount_paid'>) => Math.max(0, (p.total_price ?? 0) - (p.amount_paid ?? 0));
 export const money = (n: number | null | undefined) => (n == null ? '—' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 })}`);
+
+/** Reads a "Party request" email from the website into party fields. */
+export function parsePartyEmail(text: string) {
+  const body = text.replace(/\r/g, '');
+  const field = (label: string) => {
+    const m = body.match(new RegExp(`^[\\s*>-]*${label}\\s*:[ \\t]*(.*)$`, 'im'));
+    return m ? m[1].replace(/\[([^\]]*)\]\((?:[^()]|\([^)]*\))*\)/g, '$1').replace(/<[^>]*>/g, '').replace(/\*/g, '').trim() : '';
+  };
+  const comments = body.match(/^[\s*>-]*Comments\s*:[ \t]*([\s\S]*)$/im)?.[1].trim() ?? '';
+  const email = field('Email').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/)?.[0] ?? field('Email');
+  const kids = field('Kids attending').match(/\d+/)?.[0] ?? '';
+  const date = field('Date').match(/\d{4}-\d{2}-\d{2}/)?.[0]
+    ?? body.match(/Party request:\s*(\d{4}-\d{2}-\d{2})/i)?.[1] ?? '';
+  return {
+    parent_name: field('Requested by') || (body.match(/Party request:[^—\n]*—\s*(.+)$/im)?.[1].trim() ?? ''),
+    parent_email: email,
+    parent_phone: field('Phone'),
+    party_date: date,
+    time_slot: field('Start time') || field('Time'),
+    num_children: kids,
+    children_ages: field('Ages'),
+    theme: field('Theme'),
+    add_ons: field('Add-ons').split(',').map((a) => a.trim()).filter((a) => a && !/^none$/i.test(a)),
+    child_age: field('Birthday child age') || field('Turning'),
+    comments,
+  };
+}

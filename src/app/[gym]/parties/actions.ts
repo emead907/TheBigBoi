@@ -57,7 +57,7 @@ export async function createParty(slug: string, form: FormData): Promise<Result>
     child_name: s('child_name'), child_age: s('child_age'), party_date: s('party_date'), time_slot: s('time_slot'),
     num_children: num('num_children'), children_ages: s('children_ages'), theme: s('theme'),
     add_ons: form.getAll('add_ons').map(String), package: s('package') === 'gym_only' ? 'gym_only' : 'party_room',
-    total_price: num('total_price'), notes: s('notes'),
+    total_price: num('total_price'), notes: s('notes'), comments: s('comments'),
   };
   const { data, error } = await createClient().from('parties').insert(row).select('id').single();
   if (error) return { ok: false, error: error.message };
