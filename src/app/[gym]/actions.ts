@@ -123,12 +123,14 @@ export async function createTrials(slug: string, form: FormData): Promise<Action
   redirect(`/${slug}`);
 }
 
-export async function deleteTrial(slug: string, id: string): Promise<ActionResult> {
+/** Permanently removes a request (tests, out-of-area leads). It drops out of every report. */
+export async function deleteTrial(slug: string, id: string, opts: { stay?: boolean } = {}): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
   if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can delete requests.' };
   const { error } = await createClient().from('trials').delete().eq('id', id).eq('gym_id', ctx.gym.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/${slug}`, 'layout');
+  if (opts.stay) return { ok: true, message: 'Deleted.' };
   redirect(`/${slug}`);
 }
 

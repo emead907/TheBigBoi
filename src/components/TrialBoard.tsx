@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import type { Trial } from '@/lib/types';
 import { STAGES, STATUS_LABEL, waitlistPositions, type Stage } from '@/lib/stages';
 import { ageOn, formatDay } from '@/lib/dates';
-import { updateTrial, type TrialPatch } from '@/app/[gym]/actions';
+import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Avatar, CheckBox, PageHeader, splitClass } from './ui';
-import { Calendar, ChevronRight, Plus, Search } from './icons';
+import { Calendar, ChevronRight, Plus, Search, Trash } from './icons';
 
 type Row = Trial & { stage: Stage };
 
@@ -16,16 +16,16 @@ const DOT: Record<Stage, string> = {
   follow_up: 'bg-stage-follow', enrolled: 'bg-stage-won', closed: 'bg-stage-lost',
 };
 
-export default function TrialBoard({ slug, timezone, today, trials, initialStage }: {
-  slug: string; timezone: string; today: string; trials: Row[]; initialStage: Stage;
+export default function TrialBoard({ slug, timezone, today, trials, initialStage, canDelete = false }: {
+  slug: string; timezone: string; today: string; trials: Row[]; initialStage: Stage; canDelete?: boolean;
 }) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>(initialStage);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [, startTransition] = useTransition();
-  const [rows, applyOptimistic] = useOptimistic(trials, (state, u: { id: string; patch: TrialPatch }) =>
-    state.map((t) => (t.id === u.id ? ({ ...t, ...u.patch } as Row) : t)));
+  const [rows, applyOptimistic] = useOptimistic(trials, (state, u: { id: string; patch?: TrialPatch; remove?: boolean }) =>
+    u.remove ? state.filter((t) => t.id !== u.id) : state.map((t) => (t.id === u.id ? ({ ...t, ...u.patch } as Row) : t)));
 
   const counts = useMemo(() => {
     const c: Record<Stage, number> = { waitlist: 0, new: 0, upcoming: 0, today: 0, follow_up: 0, enrolled: 0, closed: 0 };
@@ -51,6 +51,16 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
     startTransition(async () => {
       applyOptimistic({ id, patch });
       const res = await updateTrial(slug, id, patch);
+      if (!res.ok) setError(res.error);
+      router.refresh();
+    });
+  }
+  function remove(t: Row) {
+    if (!window.confirm(`Delete ${t.child_name}'s request? Use this for tests or families you can't serve (like out-of-area leads). It's removed from the board and from all reports, and can't be undone.`)) return;
+    setError('');
+    startTransition(async () => {
+      applyOptimistic({ id: t.id, remove: true });
+      const res = await deleteTrial(slug, t.id, { stay: true });
       if (!res.ok) setError(res.error);
       router.refresh();
     });
@@ -111,7 +121,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
                     <th className="px-3 py-3.5">Parent</th>
                     <th className="px-3 py-3.5">Received</th>
                     <Heads view={view} />
-                    <th className="w-10" />
+                    <th className="w-20" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#edf0f4]">
@@ -140,9 +150,17 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
                         <td className="px-3 py-4"><Received iso={t.received_at} timezone={timezone} late={late} /></td>
                         <Cells t={t} view={view} save={save} pos={positions[t.id]} />
                         <td className="pr-4">
-                          <Link href={`/${slug}/trials/${t.id}`} aria-label={`Open ${t.child_name}`} className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa4b4] hover:bg-white hover:text-navy">
-                            <ChevronRight className="h-4 w-4" />
-                          </Link>
+                          <div className="flex items-center justify-end gap-1">
+                            {canDelete && (
+                              <button type="button" onClick={() => remove(t)} aria-label={`Delete ${t.child_name}'s request`} title="Delete request"
+                                className="grid h-8 w-8 place-items-center rounded-lg text-[#b6bfcc] opacity-0 transition hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100">
+                                <Trash className="h-4 w-4" />
+                              </button>
+                            )}
+                            <Link href={`/${slug}/trials/${t.id}`} aria-label={`Open ${t.child_name}`} className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa4b4] hover:bg-white hover:text-navy">
+                              <ChevronRight className="h-4 w-4" />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );

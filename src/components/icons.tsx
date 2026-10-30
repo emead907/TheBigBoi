@@ -24,3 +24,4 @@ export const UserPlus = ({ className }: P) => <svg {...base(className)}><path d=
 export const Edit = ({ className }: P) => <svg {...base(className)}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>;
 export const Note = ({ className }: P) => <svg {...base(className)}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></svg>;
 export const Alert = ({ className }: P) => <svg {...base(className)}><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" /></svg>;
+export const Trash = ({ className }: P) => <svg {...base(className)}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>;

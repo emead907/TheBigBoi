@@ -25,5 +25,5 @@ export default async function BoardPage({ params, searchParams }: { params: { gy
     ? (searchParams.stage as Stage)
     : trials.some((t) => t.stage === 'today') ? 'today' : 'new';
 
-  return <TrialBoard slug={ctx.gym.slug} timezone={ctx.gym.timezone} today={ctx.today} trials={trials} initialStage={stage} />;
+  return <TrialBoard slug={ctx.gym.slug} timezone={ctx.gym.timezone} today={ctx.today} trials={trials} initialStage={stage} canDelete={ctx.role === 'owner'} />;
 }

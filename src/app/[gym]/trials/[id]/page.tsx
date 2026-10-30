@@ -10,7 +10,7 @@ import { channelReady, recipientProblem, TEMPLATE_LABEL } from '@/lib/messaging'
 import SendPanel from '@/components/SendPanel';
 import { Avatar, Card, splitClass } from '@/components/ui';
 import { ArrowLeft, Calendar, Check, Mail, Message, Note, Phone, UserPlus } from '@/components/icons';
-import { ChecklistCard, FamilyCard, FirstDayCard, NotesCard, StatusSelect, WaitlistCard, type CheckItem } from '@/components/TrialDetail';
+import { ChecklistCard, DeleteRequestButton, FamilyCard, FirstDayCard, NotesCard, StatusSelect, WaitlistCard, type CheckItem } from '@/components/TrialDetail';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,7 +108,10 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
             <p className="mt-1 text-sm text-slate-brand">{[cls.name, cls.detail].filter(Boolean).join(' · ') || 'No class listed'}</p>
           </div>
         </div>
-        <StatusSelect slug={ctx.gym.slug} trial={trial} />
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusSelect slug={ctx.gym.slug} trial={trial} />
+          {ctx.role === 'owner' && <DeleteRequestButton slug={ctx.gym.slug} id={trial.id} name={trial.child_name} />}
+        </div>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">

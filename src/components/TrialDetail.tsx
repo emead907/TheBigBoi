@@ -5,7 +5,7 @@ import type { Trial } from '@/lib/types';
 import { STATUS_LABEL } from '@/lib/stages';
 import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Card, CheckBox } from './ui';
-import { Clock, Edit } from './icons';
+import { Clock, Edit, Trash } from './icons';
 
 function useSave(slug: string, id: string) {
   const router = useRouter();
@@ -246,4 +246,17 @@ function ordinal(n: number) {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+export function DeleteRequestButton({ slug, id, name }: { slug: string; id: string; name: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button type="button" className="btn-danger h-11 rounded-xl" disabled={pending}
+      onClick={() => {
+        if (window.confirm(`Delete ${name}'s request? Use this for tests or families you can't serve (like out-of-area leads). It's removed from the board and from all reports, and can't be undone.`))
+          start(async () => { await deleteTrial(slug, id); });
+      }}>
+      <Trash className="h-4 w-4" />{pending ? 'Deleting…' : 'Delete'}
+    </button>
+  );
 }
