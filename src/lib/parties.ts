@@ -18,6 +18,14 @@ export const PARTY_SLOTS: Record<'Saturday' | 'Sunday', string[]> = {
   Saturday: ['1:00 – 2:30 PM', '3:00 – 4:30 PM'],
   Sunday: ['11:00 AM – 12:30 PM', '1:00 – 2:30 PM'],
 };
+/** No parties these days (meets, STARZ shows, holidays). Keep in sync with the website's BLOCKED_PARTY_DATES. */
+export const BLOCKED_PARTY_DATES: Record<string, string> = {
+  '2026-10-24': 'Blocked', '2026-10-25': 'Blocked',
+  '2026-11-14': 'STARZ & practice meet',
+  '2026-11-28': 'Thanksgiving', '2026-11-29': 'Thanksgiving',
+  '2026-12-05': 'STARZ',
+};
+
 export const ADD_ONS = ['Goodie Bags', 'Balloons', 'Cupcakes', 'Pizza', 'Socks', 'Additional Kids'];
 export const BASE_PRICE = 265;
 export const NON_REFUNDABLE = 50;

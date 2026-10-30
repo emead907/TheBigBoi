@@ -1,7 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { createParty } from '@/app/[gym]/parties/actions';
-import { ADD_ONS, BASE_PRICE, PARTY_SLOTS, dayName, parsePartyEmail } from '@/lib/parties';
+import { ADD_ONS, BASE_PRICE, BLOCKED_PARTY_DATES, PARTY_SLOTS, dayName, parsePartyEmail } from '@/lib/parties';
 import { Card } from './ui';
 
 const blank = {
@@ -46,7 +46,7 @@ export default function NewPartyForm({ slug }: { slug: string }) {
           {input('parent_name', 'Parent', 'text', { required: 'true' })}{input('parent_phone', 'Phone', 'tel')}
           {input('parent_email', 'Email', 'email')}{input('child_name', 'Birthday child')}
           {input('child_age', 'Turning')}{input('num_children', 'Number of kids', 'number', { min: '0' })}
-          {input('party_date', 'Party date', 'date')}
+          <div>{input('party_date', 'Party date', 'date')}{f.party_date && BLOCKED_PARTY_DATES[f.party_date] && <p className="mt-1 text-xs text-red-700">No-party day ({BLOCKED_PARTY_DATES[f.party_date]})</p>}</div>
           <div>
             <label htmlFor="np-time_slot" className="label text-[10px]">Time</label>
             <select id="np-time_slot" name="time_slot" className="input" value={f.time_slot} onChange={(e) => setF({ ...f, time_slot: e.target.value })}>
