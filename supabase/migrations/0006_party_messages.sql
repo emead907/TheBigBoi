@@ -36,21 +36,18 @@ Thank you, and we hope to see {{child_first}} back in the gym soon!$$, false),
    'Hi {{parent_first}}, it''s {{gym_name}}. {{child_first}} is still enrolled in {{class}} and tuition is billing. Please add a card in your parent portal, or call {{gym_phone}} if you''re not continuing. Thank you!', false),
 
   -- ── Birthday parties (email only: party families haven't agreed to texts) ──
-  ('party_inquiry', 'email', 'Your birthday party request at {{gym_name}}',
+  ('party_inquiry', 'email', 'Your party request for {{party_date}}',
 $$Hi {{parent_first}},
 
-Thank you for thinking of us for {{child_first}}'s birthday! We received your request for {{party_date}}, {{time_slot}}, and we'd love to celebrate with you.
+Thanks so much for reaching out about a party for {{child_first}}! We got your request for {{party_date}} at {{time_slot}}, and we'd love to have you.
 
-WHAT'S INCLUDED
-- 90 minutes total: 60 minutes of gym time and 30 minutes in the party room
-- Up to 10 kids for $265
-- Our coaches lead games and activities the whole time
-- Prefer more gym time? We also offer 90 minutes of open gym with no party room.
+Here's how our parties work: you get 90 minutes total, with an hour of gym time led by our coaches and then 30 minutes in the party room for cake and presents. It's $265 for up to 10 kids. If your group would rather stay on the gym floor the whole time, we can do 90 minutes of open gym instead.
 
-TO BOOK YOUR DATE
-Your date is reserved once the party is paid in full. Give us a call at {{gym_phone}} or reply to this email and we'll get you set up. If plans change, everything but $50 is refundable with at least 24 hours' notice.
+To lock in your date, we just need the party paid in full. Give us a call at {{gym_phone}} or reply to this email and we'll get it taken care of. If plans change, everything but $50 is refundable as long as you let us know at least 24 hours ahead.
 
-We can't wait to help make the day special!$$, false),
+Any questions about timing, number of kids, add-ons, or anything else, just let us know. We're happy to help you plan it.
+
+Talk soon!$$, false),
 
   ('party_confirmation', 'email', 'You''re booked! Party on {{party_date}}',
 $$Hi {{parent_first}},
