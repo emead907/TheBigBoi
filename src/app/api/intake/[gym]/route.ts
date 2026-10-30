@@ -31,6 +31,25 @@ export async function POST(request: NextRequest, { params }: { params: { gym: st
     }
     return null;
   };
+  // Birthday party requests go to the Parties page.
+  if (body.kind === 'party') {
+    const addOns = Array.isArray(body.add_ons) ? body.add_ons.map(String) : (s('add_ons') ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    const kids = Number(s('num_children'));
+    const partyId = s('id');
+    const { data, error } = await db.from('parties').insert({
+      gym_id: gym.id, source: 'website',
+      parent_name: s('parent', 'parent_name', 'name'), parent_email: s('email'), parent_phone: s('phone') ? formatPhone(s('phone')!) : null,
+      child_name: s('child', 'child_name'), child_age: s('child_age', 'birthday_child_age'),
+      party_date: parseDateLoose(s('party_date') ?? ''), time_slot: s('time_slot', 'start_time'),
+      num_children: Number.isFinite(kids) && kids > 0 ? Math.round(kids) : null, children_ages: s('children_ages'),
+      theme: s('theme'), add_ons: addOns.slice(0, 20), comments: s('comments', 'notes'),
+      external_id: partyId ? `party-${partyId}` : null,
+    }).select('id').single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await db.from('activity').insert({ gym_id: gym.id, party_id: data.id, actor: 'Website', kind: 'created', detail: 'Party request came in from the website' });
+    return NextResponse.json({ ok: true, created: 1 });
+  }
+
   let children: { name: string; birthday: string | null }[] = [];
   if (Array.isArray(body.children)) {
     children = (body.children as Record<string, unknown>[])

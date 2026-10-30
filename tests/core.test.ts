@@ -104,3 +104,21 @@ describe('waitlist', () => {
     expect(p).toEqual({ b: 1, a: 2, c: 1 });
   });
 });
+
+import { conflicts, dayName, partyStage } from '@/lib/parties';
+describe('parties', () => {
+  it('stages', () => {
+    expect(partyStage({ status: 'inquiry', party_date: '2026-11-07' }, '2026-10-29')).toBe('inquiry');
+    expect(partyStage({ status: 'booked', party_date: '2026-11-07' }, '2026-10-29')).toBe('upcoming');
+    expect(partyStage({ status: 'booked', party_date: '2026-10-25' }, '2026-10-29')).toBe('past');
+    expect(partyStage({ status: 'not_booked', party_date: null }, '2026-10-29')).toBe('closed');
+  });
+  it('weekend days and double bookings', () => {
+    expect(dayName('2026-11-07')).toBe('Saturday');
+    expect(dayName('2026-11-08')).toBe('Sunday');
+    expect(dayName('2026-11-09')).toBeNull();
+    const all = [{ id: 'a', party_date: '2026-11-07', time_slot: '1:00 – 2:30 PM', status: 'booked' as const }];
+    expect(conflicts({ id: 'b', party_date: '2026-11-07', time_slot: '1:00 – 2:30 PM' }, all)).toHaveLength(1);
+    expect(conflicts({ id: 'a', party_date: '2026-11-07', time_slot: '1:00 – 2:30 PM' }, all)).toHaveLength(0);
+  });
+});
