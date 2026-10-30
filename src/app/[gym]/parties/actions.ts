@@ -7,6 +7,8 @@ import { getGymContext } from '@/lib/gym';
 import { formatPhone } from '@/lib/parse';
 import { formatDay } from '@/lib/dates';
 import type { Party } from '@/lib/parties';
+import type { PartyTemplateKey, Template } from '@/lib/types';
+import { sendPartyTemplate } from '@/lib/messaging';
 
 type Result = { ok: true; message?: string } | { ok: false; error: string };
 const EDITABLE = ['status', 'parent_name', 'parent_email', 'parent_phone', 'child_name', 'child_age', 'party_date', 'time_slot',
@@ -74,4 +76,18 @@ export async function deleteParty(slug: string, id: string, opts: { stay?: boole
   revalidatePath(`/${slug}/parties`, 'layout');
   if (opts.stay) return { ok: true };
   redirect(`/${slug}/parties`);
+}
+
+export async function sendPartyMessage(slug: string, id: string, key: PartyTemplateKey): Promise<Result> {
+  const ctx = await getGymContext(slug);
+  const db = createClient();
+  const [{ data: party }, { data: template }] = await Promise.all([
+    db.from('parties').select('*').eq('id', id).eq('gym_id', ctx.gym.id).single(),
+    db.from('templates').select('*').eq('gym_id', ctx.gym.id).eq('key', key).eq('channel', 'email').single(),
+  ]);
+  if (!party) return { ok: false, error: 'Party not found.' };
+  if (!template) return { ok: false, error: 'That email is missing. A manager can add it in Settings.' };
+  const res = await sendPartyTemplate({ db, gym: ctx.gym, party: party as Party, template: template as Template, sentBy: ctx.userId, actor: ctx.actor });
+  revalidatePath(`/${slug}/parties`, 'layout');
+  return res.ok ? { ok: true, message: 'Email sent.' } : { ok: false, error: res.error ?? 'Not sent.' };
 }

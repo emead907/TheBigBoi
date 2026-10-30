@@ -1,9 +1,10 @@
 import type { Gym, Trial } from './types';
+import type { Party } from './parties';
 import { formatDay } from './dates';
 
 const first = (s: string | null | undefined, fallback: string) => (s ?? '').trim().split(/\s+/)[0] || fallback;
 
-export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'phone'>): Record<string, string> {
+export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'phone'> & { website?: string | null }): Record<string, string> {
   return {
     parent_first: first(t.parent_name, 'there'),
     child_first: first(t.child_name, 'your child'),
@@ -13,6 +14,43 @@ export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'p
     first_day_time: t.first_day_time ? ` at ${t.first_day_time}` : '',
     gym_name: gym.short_name || gym.name,
     gym_phone: gym.phone || '',
+    portal_link: siteLink(gym, '/parent-portal'),
+  };
+}
+
+type GymBits = Pick<Gym, 'name' | 'short_name' | 'phone'> & { website?: string | null };
+
+function siteLink(gym: GymBits, path: string) {
+  const base = (gym.website ?? '').trim().replace(/\/+$/, '');
+  if (!base) return '';
+  return (/^https?:\/\//.test(base) ? base : `https://${base}`) + path;
+}
+
+/** "2026-11-07" → "Saturday, November 7" */
+export function longDay(ymd: string | null | undefined): string {
+  if (!ymd) return '';
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+const dollars = (n: number | null | undefined) =>
+  n == null ? '' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
+
+export function partyVars(p: Party, gym: GymBits): Record<string, string> {
+  const balance = Math.max(0, (p.total_price ?? 0) - (p.amount_paid ?? 0));
+  return {
+    parent_first: first(p.parent_name, 'there'),
+    child_first: first(p.child_name, 'your child'),
+    child_age: p.child_age ?? '',
+    party_date: longDay(p.party_date) || 'your requested date',
+    time_slot: p.time_slot || 'your requested time',
+    num_children: p.num_children != null ? String(p.num_children) : 'TBD',
+    price: dollars(p.total_price),
+    amount_paid: dollars(p.amount_paid ?? 0),
+    balance: dollars(balance),
+    gym_name: gym.short_name || gym.name,
+    gym_phone: gym.phone || '',
+    waiver_link: siteLink(gym, '/waiver'),
   };
 }
 

@@ -10,7 +10,7 @@ export interface Party {
   num_children: number | null; children_ages: string | null; theme: string | null; add_ons: string[];
   package: 'party_room' | 'gym_only'; comments: string | null;
   total_price: number | null; amount_paid: number; paid_at: string | null; contacted_at: string | null;
-  confirmed_at: string | null; coach: string | null; notes: string | null; external_id: string | null;
+  confirmed_at: string | null; reminder_sent_at?: string | null; thanks_sent_at?: string | null; coach: string | null; notes: string | null; external_id: string | null;
 }
 
 /** Same slots as the website's party form (gym-stars-website/app/lib/birthdaySlots.ts). */

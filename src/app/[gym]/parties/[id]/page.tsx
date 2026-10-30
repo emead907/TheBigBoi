@@ -4,7 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { formatDateTime, formatDay } from '@/lib/dates';
 import { conflicts, partyStage, type Party } from '@/lib/parties';
-import type { Activity } from '@/lib/types';
+import { PARTY_KEYS, type Activity, type PartyTemplateKey, type Template } from '@/lib/types';
+import { partyVars, renderTemplate } from '@/lib/templates';
+import { channelReady, partyRecipientProblem, TEMPLATE_LABEL } from '@/lib/messaging';
+import SendPanel from '@/components/SendPanel';
 import { Avatar, Card } from '@/components/ui';
 import { ArrowLeft } from '@/components/icons';
 import PartyEditor from '@/components/PartyEditor';
@@ -17,13 +20,25 @@ export default async function PartyPage({ params }: { params: { gym: string; id:
   const { data } = await db.from('parties').select('*').eq('id', params.id).eq('gym_id', ctx.gym.id).maybeSingle();
   if (!data) notFound();
   const party = data as Party;
-  const [{ data: same }, { data: acts }] = await Promise.all([
+  const [{ data: same }, { data: acts }, { data: tpls }] = await Promise.all([
     party.party_date ? db.from('parties').select('id, party_date, time_slot, status, child_name, parent_name').eq('gym_id', ctx.gym.id).eq('party_date', party.party_date) : Promise.resolve({ data: [] }),
     db.from('activity').select('*').eq('party_id', party.id).order('created_at', { ascending: false }).limit(60),
+    db.from('templates').select('*').eq('gym_id', ctx.gym.id).eq('channel', 'email').in('key', PARTY_KEYS),
   ]);
+  const vars = partyVars(party, ctx.gym);
+  const options = ((tpls ?? []) as Template[]).map((t) => ({
+    key: t.key, channel: t.channel, label: TEMPLATE_LABEL[t.key],
+    subject: t.subject ? renderTemplate(t.subject, vars) : null,
+    body: renderTemplate(t.body, vars),
+    blocked: channelReady('email', ctx.gym) ?? partyRecipientProblem('email', party),
+  }));
   const sameDay = (same ?? []) as (Pick<Party, 'id' | 'party_date' | 'time_slot' | 'status'> & { child_name: string | null; parent_name: string | null })[];
   const clash = conflicts(party, sameDay);
   const stage = partyStage(party, ctx.today);
+  const suggested: PartyTemplateKey =
+    stage === 'inquiry' ? 'party_inquiry'
+    : stage === 'upcoming' ? (party.confirmed_at ? 'party_reminder' : 'party_confirmation')
+    : 'party_thank_you';
   const title = party.child_name ? `${party.child_name}'s Party` : party.parent_name ? `${party.parent_name}'s Party` : 'Birthday Party';
 
   return (
@@ -48,6 +63,7 @@ export default async function PartyPage({ params }: { params: { gym: string; id:
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <PartyEditor slug={ctx.gym.slug} party={party} isOwner={ctx.role === 'owner'} />
         <div className="min-w-0 space-y-5">
+          <SendPanel slug={ctx.gym.slug} partyId={party.id} options={options} suggested={suggested} />
           {party.comments && <Card eyebrow="From the family" title="Their message"><p className="whitespace-pre-line text-sm">{party.comments}</p></Card>}
           <Card eyebrow="Latest updates" title="Activity">
             {(acts ?? []).length === 0 ? <p className="text-sm text-slate-brand">Nothing yet.</p> : (

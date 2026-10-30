@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { stageOf, waitlistPositions } from '@/lib/stages';
 import { ageOn, formatDateTime, formatDay } from '@/lib/dates';
-import type { Activity, Template, Trial } from '@/lib/types';
+import { TRIAL_KEYS, type Activity, type Template, type Trial } from '@/lib/types';
 import { renderTemplate, templateVars } from '@/lib/templates';
 import { channelReady, recipientProblem, TEMPLATE_LABEL } from '@/lib/messaging';
 import SendPanel from '@/components/SendPanel';
@@ -68,8 +68,9 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
   }
 
   const vars = templateVars(trial, ctx.gym);
-  const order = ['spot_ready', 'first_day_reminder', 'follow_up'];
+  const order: string[] = TRIAL_KEYS;
   const options = ((tpls ?? []) as Template[])
+    .filter((t) => order.includes(t.key))
     .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key) || a.channel.localeCompare(b.channel))
     .map((t) => ({
       key: t.key, channel: t.channel, label: TEMPLATE_LABEL[t.key],
@@ -77,7 +78,7 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
       body: renderTemplate(t.body, vars),
       blocked: channelReady(t.channel, ctx.gym) ?? recipientProblem(t.channel, trial),
     }));
-  const suggested = stage === 'new' ? 'spot_ready' : stage === 'upcoming' ? 'first_day_reminder' : 'follow_up';
+  const suggested = stage === 'new' ? 'spot_ready' : stage === 'upcoming' ? 'first_day_reminder' : trial.followup_sent_at || trial.followed_up_at ? 'follow_up_2' : 'follow_up';
 
   const notesBy = activity.find((a) => a.detail === 'Updated notes');
 

@@ -1,8 +1,9 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Channel, TemplateKey } from '@/lib/types';
+import type { Channel, PartyTemplateKey, TemplateKey } from '@/lib/types';
 import { sendTrialMessage } from '@/app/[gym]/actions';
+import { sendPartyMessage } from '@/app/[gym]/parties/actions';
 import { Card } from './ui';
 import { Mail, Message, Send } from './icons';
 
@@ -10,15 +11,24 @@ export interface SendOption {
   key: TemplateKey; channel: Channel; label: string; subject: string | null; body: string; blocked: string | null;
 }
 
-const KEYS: { key: TemplateKey; label: string }[] = [
-  { key: 'spot_ready', label: 'Spot is ready' },
-  { key: 'first_day_reminder', label: 'First-day reminder' },
+const TRIAL_TABS: { key: TemplateKey; label: string }[] = [
+  { key: 'spot_ready', label: 'Spot ready' },
+  { key: 'first_day_reminder', label: 'Reminder' },
   { key: 'follow_up', label: 'Follow-up' },
+  { key: 'follow_up_2', label: 'Follow-up 2' },
+];
+const PARTY_TABS: { key: TemplateKey; label: string }[] = [
+  { key: 'party_inquiry', label: 'Inquiry' },
+  { key: 'party_confirmation', label: 'Booked' },
+  { key: 'party_reminder', label: 'Reminder' },
+  { key: 'party_thank_you', label: 'Thank you' },
 ];
 
-export default function SendPanel({ slug, trialId, options, suggested = 'spot_ready' }: {
-  slug: string; trialId: string; options: SendOption[]; suggested?: TemplateKey;
+export default function SendPanel({ slug, trialId, partyId, options, suggested = 'spot_ready' }: {
+  slug: string; trialId?: string; partyId?: string; options: SendOption[]; suggested?: TemplateKey;
 }) {
+  const isParty = !!partyId;
+  const KEYS = isParty ? PARTY_TABS : TRIAL_TABS;
   const router = useRouter();
   const [key, setKey] = useState<TemplateKey>(suggested);
   const [channel, setChannel] = useState<Channel>('email');
@@ -27,25 +37,25 @@ export default function SendPanel({ slug, trialId, options, suggested = 'spot_re
   const o = options.find((x) => x.key === key && x.channel === channel);
 
   return (
-    <Card eyebrow="Family message" title="Send a message">
+    <Card eyebrow="Family message" title={isParty ? 'Send an email' : 'Send a message'}>
       <div role="tablist" aria-label="Message" className="-mt-1 flex border-b border-[#e3e7ee]">
         {KEYS.map((k) => (
           <button key={k.key} role="tab" aria-selected={key === k.key} onClick={() => { setKey(k.key); setResult(null); }}
-            className={`relative flex-1 pb-2.5 text-xs font-semibold ${key === k.key ? 'text-navy' : 'text-slate-brand hover:text-navy'}`}>
+            className={`relative flex-1 px-1 pb-2.5 text-[11px] font-semibold ${key === k.key ? 'text-navy' : 'text-slate-brand hover:text-navy'}`}>
             {k.label}
             {key === k.key && <span className="absolute inset-x-2 -bottom-px h-[2px] rounded bg-navy" />}
           </button>
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-[#eef1f6] p-1" role="radiogroup" aria-label="Send by">
+      {!isParty && <div className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-[#eef1f6] p-1" role="radiogroup" aria-label="Send by">
         {([['email', 'Email', Mail], ['sms', 'Text', Message]] as const).map(([c, l, Icon]) => (
           <button key={c} role="radio" aria-checked={channel === c} onClick={() => { setChannel(c); setResult(null); }}
             className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold ${channel === c ? 'bg-white text-navy shadow-sm' : 'text-slate-brand'}`}>
             <Icon className="h-4 w-4" />{l}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="mt-4 rounded-xl border border-[#e3e7ee] p-4">
         <div className="eyebrow text-[10px]">Preview</div>
@@ -60,7 +70,9 @@ export default function SendPanel({ slug, trialId, options, suggested = 'spot_re
       {o?.blocked && <p className="mt-3 rounded-lg bg-[#fff6e5] px-3 py-2 text-xs text-[#8a5300]">{o.blocked}</p>}
       <button className="btn-primary mt-4 w-full rounded-xl py-3" disabled={pending || !o || !!o.blocked}
         onClick={() => start(async () => {
-          const res = await sendTrialMessage(slug, trialId, key, channel);
+          const res = isParty
+            ? await sendPartyMessage(slug, partyId!, key as PartyTemplateKey)
+            : await sendTrialMessage(slug, trialId!, key, channel);
           setResult(res.ok ? { ok: true, text: res.message ?? 'Sent.' } : { ok: false, text: res.error });
           router.refresh();
         })}>
