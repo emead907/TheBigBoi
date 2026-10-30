@@ -85,7 +85,9 @@ export function parseGoMotion(table: unknown[][]): ParsedPeople {
     if (!mf) continue; // account with no athletes
     const birthday = parseDateLoose(get(r, 'birthday'));
     const mkey = `${akey}|${`${mf} ${ml}`.toLowerCase()}|${birthday ?? ''}`;
-    const classes = getAll(r, 'classes').flatMap((c) => c.split(/\n|;/)).map((c) => c.trim()).filter(Boolean);
+    // GoMotion repeats "Class Membership": the first one is this athlete's classes, the second is the
+    // whole account's (all siblings). Only use the first, or siblings get each other's classes.
+    const classes = get(r, 'classes').split(/\n|;/).map((c) => c.trim()).filter(Boolean);
     const bookings = getAll(r, 'bookings').flatMap((c) => c.split(/\n|;/)).map((c) => c.trim()).filter(Boolean);
     const m = members.get(mkey);
     members.set(mkey, {

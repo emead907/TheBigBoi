@@ -23,4 +23,10 @@ describe('parseGoMotion', () => {
     expect(dunya.bookings).toEqual(['2026 Team Practice Meet | Sat']);
     expect(className(dunya.classes[0])).toBe('Shining Stars');
   });
+  it("ignores the account-level class column so siblings don't share classes", () => {
+    const q = parseGoMotion([header,
+      ['', '01/01/2015', 'STARZ 2 | Reg Slot #1', 'F', 'Elaine', 'B', 'Active', 'Mike', 'B', '', 'STARZ 2 | Reg Slot #1\nTeam - Group C | Reg Slot #1', 'm@x.com', '', '', ''],
+      ['', '01/01/2018', 'Team - Group C | Reg Slot #1', 'F', 'Autumn', 'B', 'Active', 'Mike', 'B', '', 'STARZ 2 | Reg Slot #1\nTeam - Group C | Reg Slot #1', 'm@x.com', '', '', '']]);
+    expect(q.members.map((m) => m.classes)).toEqual([['STARZ 2 | Reg Slot #1'], ['Team - Group C | Reg Slot #1']]);
+  });
 });
