@@ -5,10 +5,9 @@ import { usePathname } from 'next/navigation';
 export default function NavLinks({ slug, isOwner }: { slug: string; isOwner: boolean }) {
   const pathname = usePathname();
   const links = [
-    { href: `/${slug}`, label: 'Board', on: pathname === `/${slug}` || pathname.startsWith(`/${slug}/trials`) },
+    { href: `/${slug}`, label: 'Board', on: pathname === `/${slug}` || pathname.startsWith(`/${slug}/trials`) || pathname.startsWith(`/${slug}/new`) },
     { href: `/${slug}/parties`, label: 'Parties', on: pathname.startsWith(`/${slug}/parties`) },
     { href: `/${slug}/people`, label: 'People', on: pathname.startsWith(`/${slug}/people`) },
-    { href: `/${slug}/new`, label: 'Add Request', on: pathname.startsWith(`/${slug}/new`) },
     { href: `/${slug}/reports`, label: 'Reports', on: pathname.startsWith(`/${slug}/reports`) },
     ...(isOwner ? [{ href: `/${slug}/settings`, label: 'Settings', on: pathname.startsWith(`/${slug}/settings`) }] : []),
   ];
