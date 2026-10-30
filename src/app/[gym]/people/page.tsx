@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { PageHeader } from '@/components/ui';
-import PeopleDirectory, { type DirAccount } from '@/components/PeopleDirectory';
+import PeopleDirectory, { type DirAccount, type DirReg } from '@/components/PeopleDirectory';
 import { UserPlus } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +18,17 @@ export default async function PeoplePage({ params, searchParams }: { params: { g
     accounts.push(...((data ?? []) as unknown as DirAccount[]));
     if (!data || data.length < 1000) break;
   }
+  // Class registrations (from GoMotion's New Registrations report), attached to each athlete.
+  const regs: (DirReg & { member_id: string | null })[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data } = await db.from('registrations').select('member_id, class_name, slot, start_date, drop_date, waitlisted')
+      .eq('gym_id', ctx.gym.id).range(from, from + 999);
+    regs.push(...((data ?? []) as (DirReg & { member_id: string | null })[]));
+    if (!data || data.length < 1000) break;
+  }
+  const regsByMember = new Map<string, DirReg[]>();
+  regs.forEach((r) => r.member_id && regsByMember.set(r.member_id, [...(regsByMember.get(r.member_id) ?? []), r]));
+  accounts.forEach((a) => a.members.forEach((m) => { m.regs = regsByMember.get(m.id) ?? []; }));
 
   return (
     <div className="space-y-6">
@@ -30,7 +41,7 @@ export default async function PeoplePage({ params, searchParams }: { params: { g
           {ctx.role === 'owner' && <Link href={`/${ctx.gym.slug}/people/import`} className="btn-primary mt-4 rounded-xl">Import people</Link>}
         </div>
       ) : (
-        <PeopleDirectory slug={ctx.gym.slug} today={ctx.today} accounts={accounts} initialTab={searchParams.tab === 'athletes' ? 'athletes' : 'families'} />
+        <PeopleDirectory slug={ctx.gym.slug} today={ctx.today} accounts={accounts} useRegs={regs.length > 0} initialTab={searchParams.tab === 'athletes' ? 'athletes' : 'families'} />
       )}
     </div>
   );

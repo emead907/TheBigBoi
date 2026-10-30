@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
-import type { AccountRow, MemberRow } from '@/lib/people';
+import type { AccountRow, MemberRow, RegistrationRow } from '@/lib/people';
 import { formatPhone } from '@/lib/parse';
 
 export type ImportResult =
@@ -83,4 +83,50 @@ export async function updateMemberNotes(slug: string, id: string, notes: string)
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/${slug}/people`, 'layout');
   return { ok: true };
+}
+
+export type RegImportResult = { ok: true; total: number; added: number; linked: number; unlinked: string[] } | { ok: false; error: string };
+
+/** Imports GoMotion's New Registrations report and links each row to an athlete in People. */
+export async function importRegistrations(slug: string, rows: RegistrationRow[]): Promise<RegImportResult> {
+  const ctx = await getGymContext(slug);
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can import registrations.' };
+  if (rows.length > 20000) return { ok: false, error: 'That file is too big to import at once.' };
+  const db = createClient();
+  const n = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/[^a-z]/g, '');
+
+  // Athletes by name + birthday, and by name alone when that name is unique.
+  const byNameDob = new Map<string, string>();
+  const byName = new Map<string, string | null>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from('members').select('id, first_name, last_name, birthday').eq('gym_id', ctx.gym.id).range(from, from + 999);
+    if (error) return { ok: false, error: error.message };
+    (data ?? []).forEach((m) => {
+      const k = `${n(m.first_name)}|${n(m.last_name)}`;
+      if (m.birthday) byNameDob.set(`${k}|${m.birthday}`, m.id);
+      byName.set(k, byName.has(k) && byName.get(k) !== m.id ? null : m.id);
+    });
+    if (!data || data.length < 1000) break;
+  }
+
+  const have = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data } = await db.from('registrations').select('match_key').eq('gym_id', ctx.gym.id).range(from, from + 999);
+    (data ?? []).forEach((r) => have.add(r.match_key));
+    if (!data || data.length < 1000) break;
+  }
+
+  const unlinked = new Set<string>();
+  const payload = rows.map(({ first_name, last_name, ...r }) => {
+    const k = `${n(first_name)}|${n(last_name)}`;
+    const member_id = (r.birthday && byNameDob.get(`${k}|${r.birthday}`)) || byName.get(k) || null;
+    if (!member_id) unlinked.add(r.member_name);
+    return { ...r, gym_id: ctx.gym.id, member_id, imported_at: new Date().toISOString() };
+  });
+  for (let i = 0; i < payload.length; i += 500) {
+    const { error } = await db.from('registrations').upsert(payload.slice(i, i + 500), { onConflict: 'gym_id,match_key' });
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath(`/${slug}/people`, 'layout');
+  return { ok: true, total: rows.length, added: rows.filter((r) => !have.has(r.match_key)).length, linked: payload.filter((p) => p.member_id).length, unlinked: [...unlinked].sort() };
 }

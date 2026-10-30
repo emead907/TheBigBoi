@@ -30,3 +30,21 @@ describe('parseGoMotion', () => {
     expect(q.members.map((m) => m.classes)).toEqual([['STARZ 2 | Reg Slot #1'], ['Team - Group C | Reg Slot #1']]);
   });
 });
+
+import { parseRegistrations, regState } from '@/lib/people';
+describe('registrations report', () => {
+  const t = [['New Registrations Report'],
+    ['Account', 'Member', 'Age', 'Member DOB', 'Gender', 'Registered Class', 'Slot', 'Registered Payment Plan', 'Reviewed', 'Date of Registration', 'Waitlist', 'Start/Drop Date', 'Phone'],
+    ['Leighton, Amy', 'Leighton, Kash', '', '01/02/2019', 'M', 'Ninja 1', '#1', 'Plan', '', '10/21/2026', 'No', 'S: 11/10/2026', '2085551234'],
+    ['Murri, T', 'Murri, Otto', '', '07/27/2022', 'M', 'Twinkling Stars', '#4', 'Plan', '', '01/21/2026', 'Yes', 'D: 06/01/2026', ''],
+    ['Doe, J', 'Doe, Ann', '', '05/27/2010', 'F', 'Team - Group F', '#1', 'Plan', '', '08/01/2025', 'No', 'S: 08/01/2025\nD: 05/28/2027', '']];
+  const { rows } = parseRegistrations(t);
+  it('reads start, drop and waitlist', () => {
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ first_name: 'Kash', last_name: 'Leighton', birthday: '2019-01-02', start_date: '2026-11-10', waitlisted: false });
+    expect(rows[2]).toMatchObject({ start_date: '2025-08-01', drop_date: '2027-05-28' });
+  });
+  it('works out who is active today', () => {
+    expect(rows.map((r) => regState(r, '2026-10-29'))).toEqual(['upcoming', 'waitlist', 'active']);
+  });
+});

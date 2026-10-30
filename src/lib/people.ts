@@ -51,6 +51,11 @@ export function parseGoMotion(table: unknown[][]): ParsedPeople {
   // A column can appear twice (GoMotion repeats "Class Membership"): keep every index.
   const idx = (names: string[]) => header.flatMap((h, i) => (names.includes(h) ? [i] : []));
   const col = Object.fromEntries(Object.entries(COLS).map(([k, v]) => [k, idx(v)])) as Record<keyof typeof COLS, number[]>;
+  // GoMotion lists member fields before account fields. A "Class Membership" column in the account
+  // section lists every class on the account (all siblings), so only keep ones in the member section.
+  const accountStart = Math.min(...[...col.acctFirst, ...col.acctLast, ...col.account, ...col.status].concat(header.length));
+  const accountLevelClasses = col.classes.filter((i) => i > accountStart);
+  col.classes = col.classes.filter((i) => i < accountStart);
   const get = (r: unknown[], k: keyof typeof COLS) => (col[k].length ? cell(r[col[k][0]]) : '');
   const getAll = (r: unknown[], k: keyof typeof COLS) => col[k].map((i) => cell(r[i])).filter(Boolean);
 
@@ -97,9 +102,60 @@ export function parseGoMotion(table: unknown[][]): ParsedPeople {
       bookings: [...new Set([...(m?.bookings ?? []), ...bookings])],
     });
   }
+  if (accountLevelClasses.length && !col.classes.length) warnings.push('This file only has the account-level "Class Membership" column, which mixes siblings\' classes, so classes were skipped. Import the New Registrations report to fill in classes.');
   if (!col.email.length) warnings.push('No Email column found. Families are matched by name and phone instead.');
   return { accounts: [...accounts.values()], members: [...members.values()], skipped, warnings };
 }
 
 /** "Shining Stars | Reg Slot #8" → "Shining Stars" */
 export const className = (c: string) => c.split('|')[0].trim();
+
+/* ───────── GoMotion "New Registrations" report → class registrations ───────── */
+
+export interface RegistrationRow {
+  match_key: string; member_name: string; first_name: string; last_name: string; birthday: string | null;
+  account_name: string | null; phone: string | null; class_name: string; slot: string | null; payment_plan: string | null;
+  registered_on: string | null; start_date: string | null; drop_date: string | null; waitlisted: boolean;
+}
+
+export function isRegistrationsReport(table: unknown[][]) {
+  return table.slice(0, 5).some((r) => r.some((c) => norm(c) === 'registeredclass'));
+}
+
+export function parseRegistrations(table: unknown[][]): { rows: RegistrationRow[]; warnings: string[] } {
+  const hi = table.findIndex((r) => r.some((c) => norm(c) === 'registeredclass'));
+  if (hi < 0) return { rows: [], warnings: ['Could not find the "Registered Class" column.'] };
+  const h = table[hi].map(norm);
+  const at = (name: string) => h.indexOf(name);
+  const g = (r: unknown[], name: string) => (at(name) >= 0 ? cell(r[at(name)]) : '');
+  const out = new Map<string, RegistrationRow>();
+  for (const r of table.slice(hi + 1)) {
+    const member = g(r, 'member'); const cls = g(r, 'registeredclass');
+    if (!member || !cls) continue;
+    const [first, last] = splitComma(member);
+    const birthday = parseDateLoose(g(r, 'memberdob'));
+    const sd = g(r, 'startdropdate');
+    const start = sd.match(/S:\s*([\d/]+)/)?.[1]; const drop = sd.match(/D:\s*([\d/]+)/)?.[1];
+    const registered_on = parseDateLoose(g(r, 'dateofregistration'));
+    const slot = g(r, 'slot') || null;
+    const key = [`${first} ${last}`.toLowerCase(), birthday ?? '', cls.toLowerCase(), slot ?? '', registered_on ?? ''].join('|');
+    const acct = g(r, 'account');
+    out.set(key, {
+      match_key: key, member_name: `${first} ${last}`.trim(), first_name: first, last_name: last, birthday,
+      account_name: acct ? splitComma(acct).join(' ').trim() : null,
+      phone: g(r, 'phone') ? formatPhone(g(r, 'phone')) : null,
+      class_name: cls, slot, payment_plan: g(r, 'registeredpaymentplan') || null, registered_on,
+      start_date: start ? parseDateLoose(start) : null, drop_date: drop ? parseDateLoose(drop) : null,
+      waitlisted: /^y/i.test(g(r, 'waitlist')),
+    });
+  }
+  return { rows: [...out.values()], warnings: [] };
+}
+
+export type RegState = 'active' | 'upcoming' | 'waitlist' | 'dropped';
+export function regState(r: { waitlisted: boolean; start_date: string | null; drop_date: string | null }, today: string): RegState {
+  if (r.waitlisted) return 'waitlist';
+  if (r.drop_date && r.drop_date <= today) return 'dropped';
+  if (r.start_date && r.start_date > today) return 'upcoming';
+  return 'active';
+}

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { ageOn, formatDay } from '@/lib/dates';
-import { className } from '@/lib/people';
+import { className, regState } from '@/lib/people';
 import { stageOf, STAGES, STATUS_LABEL } from '@/lib/stages';
 import type { Trial } from '@/lib/types';
 import { Avatar, Card } from '@/components/ui';
@@ -21,6 +21,14 @@ export default async function FamilyPage({ params }: { params: { gym: string; id
   const { data: acct } = await db.from('accounts').select('*, members(*)').eq('id', params.id).eq('gym_id', ctx.gym.id).maybeSingle();
   if (!acct) notFound();
   const members = ((acct.members ?? []) as Member[]).sort((a, b) => (a.birthday ?? '').localeCompare(b.birthday ?? ''));
+  const { data: regData } = members.length
+    ? await db.from('registrations').select('member_id, class_name, slot, payment_plan, start_date, drop_date, waitlisted, registered_on')
+        .in('member_id', members.map((m) => m.id)).order('registered_on', { ascending: false })
+    : { data: [] };
+  type Reg = { member_id: string; class_name: string; slot: string | null; payment_plan: string | null; start_date: string | null; drop_date: string | null; waitlisted: boolean; registered_on: string | null };
+  const regsFor = (id: string) => ((regData ?? []) as Reg[]).filter((r) => r.member_id === id);
+  const STATE_CHIP = { active: 'bg-[#e3f3e9] text-stage-won', upcoming: 'bg-navy-50 text-navy', waitlist: 'bg-[#fbf3e1] text-stage-wait', dropped: 'bg-[#eef0f3] text-[#5b6472]' } as const;
+  const STATE_LABEL = { active: 'Active', upcoming: 'Starts', waitlist: 'Waitlist', dropped: 'Dropped' } as const;
   const name = [acct.first_name, acct.last_name].filter(Boolean).join(' ') || acct.email;
 
   // Trial requests from this family, matched by email.
@@ -55,6 +63,21 @@ export default async function FamilyPage({ params }: { params: { gym: string; id
                         <div className="text-xs text-slate-brand">{[ageOn(m.birthday, ctx.today), m.birthday && `born ${formatDay(m.birthday, { year: true })}`, m.gender].filter(Boolean).join(' · ')}</div>
                       </div>
                     </div>
+                    {regsFor(m.id).length > 0 ? (
+                      <div className="mt-3">
+                        <div className="eyebrow text-[10px]">Classes</div>
+                        <ul className="mt-1 space-y-1.5">{regsFor(m.id).map((r, i) => {
+                          const st = regState(r, ctx.today);
+                          return (
+                            <li key={i} className="flex flex-wrap items-center gap-2 text-sm">
+                              <span className="font-semibold">{r.class_name}</span>
+                              <span className={`chip ${STATE_CHIP[st]}`}>{STATE_LABEL[st]}{st === 'upcoming' && r.start_date ? ` ${formatDay(r.start_date)}` : ''}{st === 'dropped' && r.drop_date ? ` ${formatDay(r.drop_date)}` : ''}</span>
+                              {r.payment_plan && <span className="text-xs text-slate-brand">{r.payment_plan}</span>}
+                            </li>
+                          );
+                        })}</ul>
+                      </div>
+                    ) : (
                     <div className="mt-3">
                       <div className="eyebrow text-[10px]">Classes</div>
                       {m.classes.length ? (
@@ -63,6 +86,7 @@ export default async function FamilyPage({ params }: { params: { gym: string; id
                         ))}</ul>
                       ) : <p className="text-sm text-slate-brand">Not in a class</p>}
                     </div>
+                    )}
                     {m.bookings.length > 0 && (
                       <div className="mt-3">
                         <div className="eyebrow text-[10px]">Upcoming events</div>

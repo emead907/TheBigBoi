@@ -2,36 +2,50 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ageOn } from '@/lib/dates';
-import { className } from '@/lib/people';
+import { className, regState } from '@/lib/people';
 import { Avatar } from './ui';
 import { ChevronRight, Search } from './icons';
 
-export interface DirMember { id: string; first_name: string; last_name: string | null; birthday: string | null; gender: string | null; classes: string[]; bookings: string[]; status: string }
+export interface DirReg { class_name: string; slot: string | null; start_date: string | null; drop_date: string | null; waitlisted: boolean }
+export interface DirMember { id: string; first_name: string; last_name: string | null; birthday: string | null; gender: string | null; classes: string[]; bookings: string[]; status: string; regs?: DirReg[] }
+
+/** Classes an athlete is in today, plus ones starting later and waitlists. Uses registrations when imported. */
+export function classesOf(m: DirMember, today: string, useRegs: boolean) {
+  if (!useRegs) return { active: [...new Set(m.classes.map(className))], upcoming: [] as { name: string; start: string }[], waitlist: [] as string[] };
+  const active = new Set<string>(); const upcoming = new Map<string, string>(); const waitlist = new Set<string>();
+  (m.regs ?? []).forEach((r) => {
+    const s = regState(r, today);
+    if (s === 'active') active.add(r.class_name);
+    else if (s === 'upcoming') upcoming.set(r.class_name, r.start_date ?? '');
+    else if (s === 'waitlist') waitlist.add(r.class_name);
+  });
+  return { active: [...active], upcoming: [...upcoming].filter(([n]) => !active.has(n)).map(([name, start]) => ({ name, start })), waitlist: [...waitlist].filter((n) => !active.has(n)) };
+}
 export interface DirAccount { id: string; first_name: string | null; last_name: string | null; email: string | null; mobile: string | null; phone: string | null; sms_status: string | null; status: string; members: DirMember[] }
 
 const full = (f?: string | null, l?: string | null) => [f, l].filter(Boolean).join(' ');
 
-export default function PeopleDirectory({ slug, today, accounts, initialTab }: { slug: string; today: string; accounts: DirAccount[]; initialTab: 'families' | 'athletes' }) {
+export default function PeopleDirectory({ slug, today, accounts, initialTab, useRegs = false }: { slug: string; today: string; accounts: DirAccount[]; initialTab: 'families' | 'athletes'; useRegs?: boolean }) {
   const [tab, setTab] = useState(initialTab);
   const [q, setQ] = useState('');
   const [cls, setCls] = useState('');
   const [limit, setLimit] = useState(100);
 
-  const athletes = useMemo(() => accounts.flatMap((a) => a.members.map((m) => ({ ...m, account: a }))), [accounts]);
+  const athletes = useMemo(() => accounts.flatMap((a) => a.members.map((m) => ({ ...m, account: a, cls: classesOf(m, today, useRegs) }))), [accounts, today, useRegs]);
   const classList = useMemo(() => {
     const c = new Map<string, number>();
-    athletes.forEach((m) => new Set(m.classes.map(className)).forEach((n) => c.set(n, (c.get(n) ?? 0) + 1)));
+    athletes.forEach((m) => m.cls.active.forEach((n) => c.set(n, (c.get(n) ?? 0) + 1)));
     return [...c.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [athletes]);
-  const inClass = athletes.filter((m) => m.classes.length > 0).length;
+  const inClass = athletes.filter((m) => m.cls.active.length > 0).length;
 
   const needle = q.trim().toLowerCase();
   const hit = (...vals: (string | null | undefined)[]) => !needle || vals.some((v) => v?.toLowerCase().includes(needle));
   const famRows = accounts.filter((a) =>
-    (!cls || a.members.some((m) => m.classes.some((c) => className(c) === cls))) &&
+    (!cls || athletes.some((m) => m.account.id === a.id && m.cls.active.includes(cls))) &&
     (hit(full(a.first_name, a.last_name), a.email, a.mobile, a.phone) || a.members.some((m) => hit(full(m.first_name, m.last_name)))));
   const athRows = athletes.filter((m) =>
-    (!cls || m.classes.some((c) => className(c) === cls)) &&
+    (!cls || m.cls.active.includes(cls)) &&
     hit(full(m.first_name, m.last_name), full(m.account.first_name, m.account.last_name), m.account.email));
   const shown = tab === 'families' ? famRows.length : athRows.length;
 
@@ -107,7 +121,12 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab }: {
                   <tr key={m.id} className="hover:bg-[#f8f9fc]">
                     <td className="py-3 pl-5 pr-3"><Link href={`/${slug}/people/${m.account.id}#m-${m.id}`} className="flex items-center gap-3"><Avatar name={full(m.first_name, m.last_name)} /><span className="font-semibold hover:text-navy hover:underline">{full(m.first_name, m.last_name)}</span></Link></td>
                     <td className="px-3 py-3 tabular-nums">{ageOn(m.birthday, today) || '—'}</td>
-                    <td className="px-3 py-3">{m.classes.length ? <div className="flex flex-wrap gap-1.5">{[...new Set(m.classes.map(className))].map((c) => <span key={c} className="chip bg-[#eef6f5] text-[#2c7a73]">{c}</span>)}</div> : <span className="text-xs text-slate-brand">Not in a class</span>}</td>
+                    <td className="px-3 py-3">{m.cls.active.length + m.cls.upcoming.length + m.cls.waitlist.length ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {m.cls.active.map((c) => <span key={c} className="chip bg-[#eef6f5] text-[#2c7a73]">{c}</span>)}
+                        {m.cls.upcoming.map((u) => <span key={u.name} className="chip bg-navy-50 text-navy">{u.name} · starts {u.start.slice(5).replace('-', '/')}</span>)}
+                        {m.cls.waitlist.map((c) => <span key={c} className="chip bg-[#fbf3e1] text-stage-wait">{c} · waitlist</span>)}
+                      </div>) : <span className="text-xs text-slate-brand">Not in a class</span>}</td>
                     <td className="px-3 py-3"><Link href={`/${slug}/people/${m.account.id}`} className="hover:text-navy hover:underline">{full(m.account.first_name, m.account.last_name)}</Link><div className="text-xs text-slate-brand">{m.account.mobile || m.account.phone}</div></td>
                     <td className="pr-4"><Link href={`/${slug}/people/${m.account.id}#m-${m.id}`} aria-label="Open athlete" className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa4b4] hover:text-navy"><ChevronRight className="h-4 w-4" /></Link></td>
                   </tr>
