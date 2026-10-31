@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { partyVars, renderTemplate, longDay } from '../src/lib/templates';
+import { partyVars, renderTemplate, longDay, weekdayOf } from '../src/lib/templates';
 import type { Party } from '../src/lib/parties';
 
 const gym = { name: 'Gym Stars Gymnastics', short_name: 'Gym Stars', phone: '(208) 866-2699', website: 'https://www.gymstarsidaho.com/' };
@@ -15,5 +15,14 @@ describe('party message placeholders', () => {
     expect(renderTemplate('Hi {{parent_first}}, {{child_first}}: {{party_date}}, {{time_slot}} · {{num_children}} kids · {{amount_paid}} · {{waiver_link}}', v))
       .toBe('Hi Ashley, your child: Saturday, November 7, 1:00 – 2:30 PM · 12 kids · $300 · https://www.gymstarsidaho.com/waiver');
     expect(v.balance).toBe('$0');
+  });
+});
+
+describe('requested_day', () => {
+  it('pulls just the weekday out of the requested time', () => {
+    expect(weekdayOf('Monday at 4:30–5:30 PM')).toBe('Monday');
+    expect(weekdayOf('Tue 10:30 AM')).toBe('Tuesday');
+    expect(weekdayOf('Sat. 11:15')).toBe('Saturday');
+    expect(weekdayOf('4:30 PM')).toBe('');
   });
 });

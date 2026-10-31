@@ -38,7 +38,7 @@ export default async function SettingsPage({ params }: { params: { gym: string }
         <div>
           <h2 className="display text-3xl">Messages</h2>
           <p className="text-sm text-slate-brand">
-            Placeholders: {'{{parent_first}} {{child_first}} {{class}} {{requested_time}} {{first_day}} {{first_day_time}} {{gym_name}} {{gym_phone}} {{portal_link}}'}.
+            Placeholders: {'{{parent_first}} {{child_first}} {{class}} {{requested_time}} {{requested_day}} {{first_day}} {{first_day_time}} {{gym_name}} {{gym_phone}} {{portal_link}}'}.
             Turn on <strong>Send automatically</strong> to have the reminder go out the evening before a first day, the follow-up the evening after,
             and follow-up 2 two days after (only for kids marked as showing up, and not for families marked not enrolling).
           </p>

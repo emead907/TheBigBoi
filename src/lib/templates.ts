@@ -10,12 +10,21 @@ export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'p
     child_first: first(t.child_name, 'your child'),
     class: t.class_name || 'class',
     requested_time: t.requested_time || 'requested time',
+    requested_day: weekdayOf(t.requested_time) || 'class',
     first_day: t.first_day ? formatDay(t.first_day) : '',
     first_day_time: t.first_day_time ? ` at ${t.first_day_time}` : '',
     gym_name: gym.short_name || gym.name,
     gym_phone: gym.phone || '',
     portal_link: siteLink(gym, '/parent-portal'),
   };
+}
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** "Monday at 4:30–5:30 PM" or "Tue 10:30" → "Monday" (first weekday mentioned). */
+export function weekdayOf(text: string | null | undefined): string {
+  const m = (text ?? '').match(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*\.?\b/i);
+  return m ? DAYS.find((d) => d.toLowerCase().startsWith(m[1].toLowerCase()))! : '';
 }
 
 type GymBits = Pick<Gym, 'name' | 'short_name' | 'phone'> & { website?: string | null };
