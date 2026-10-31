@@ -168,11 +168,12 @@ export const PROGRAMS: { key: Program; label: string }[] = [
   { key: 'team', label: 'Team' },
 ];
 
-/** Which program a class belongs to, by name. Team includes Pre-Team and STARZ. */
+/** Which program a class belongs to, by name. Pre-Team and STARZ count as rec. */
 export function programOf(cls: string): Program {
   const c = cls.toLowerCase();
   if (/ninja/.test(c)) return 'ninja';
   if (/preschool|\bedu\b/.test(c)) return 'preschool';
-  if (/team|starz|level \d|group [a-z]\b/.test(c)) return 'team';
+  if (/pre-?team|starz/.test(c)) return 'rec';
+  if (/team|level \d|group [a-z]\b/.test(c)) return 'team';
   return 'rec';
 }
