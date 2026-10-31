@@ -7,6 +7,7 @@ export default function NavLinks({ slug, isOwner }: { slug: string; isOwner: boo
   const links = [
     { href: `/${slug}`, label: 'Board', on: pathname === `/${slug}` || pathname.startsWith(`/${slug}/trials`) || pathname.startsWith(`/${slug}/new`) },
     { href: `/${slug}/parties`, label: 'Parties', on: pathname.startsWith(`/${slug}/parties`) },
+    { href: `/${slug}/team`, label: 'Team', on: pathname.startsWith(`/${slug}/team`) },
     { href: `/${slug}/people`, label: 'People', on: pathname.startsWith(`/${slug}/people`) },
     { href: `/${slug}/reports`, label: 'Reports', on: pathname.startsWith(`/${slug}/reports`) },
     ...(isOwner ? [{ href: `/${slug}/settings`, label: 'Settings', on: pathname.startsWith(`/${slug}/settings`) }] : []),
