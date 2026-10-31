@@ -159,3 +159,20 @@ export function regState(r: { waitlisted: boolean; start_date: string | null; dr
   if (r.start_date && r.start_date > today) return 'upcoming';
   return 'active';
 }
+
+export type Program = 'rec' | 'ninja' | 'preschool' | 'team';
+export const PROGRAMS: { key: Program; label: string }[] = [
+  { key: 'rec', label: 'Rec gym' },
+  { key: 'ninja', label: 'Ninja' },
+  { key: 'preschool', label: 'EDU Preschool' },
+  { key: 'team', label: 'Team' },
+];
+
+/** Which program a class belongs to, by name. Team includes Pre-Team and STARZ. */
+export function programOf(cls: string): Program {
+  const c = cls.toLowerCase();
+  if (/ninja/.test(c)) return 'ninja';
+  if (/preschool|\bedu\b/.test(c)) return 'preschool';
+  if (/team|starz|level \d|group [a-z]\b/.test(c)) return 'team';
+  return 'rec';
+}

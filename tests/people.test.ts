@@ -48,3 +48,11 @@ describe('registrations report', () => {
     expect(rows.map((r) => regState(r, '2026-10-29'))).toEqual(['upcoming', 'waitlist', 'active']);
   });
 });
+
+import { programOf } from '../src/lib/people';
+describe('programOf', () => {
+  it('sorts classes into programs', () => {
+    expect(['Ninja 2', 'Preschool: 2026/2027', 'Team - Group C', 'Pre-Team', 'STARZ 1', 'Team - Level 1', 'Shining Stars', 'Twinkling Stars', 'Homeschool 2026', 'Advanced Tumbling'].map(programOf))
+      .toEqual(['ninja', 'preschool', 'team', 'team', 'team', 'team', 'rec', 'rec', 'rec', 'rec']);
+  });
+});

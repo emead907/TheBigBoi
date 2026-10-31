@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ageOn } from '@/lib/dates';
-import { className, regState } from '@/lib/people';
+import { className, PROGRAMS, programOf, regState, type Program } from '@/lib/people';
 import { Avatar } from './ui';
 import { ChevronRight, Search } from './icons';
 
@@ -29,6 +29,7 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab, use
   const [tab, setTab] = useState(initialTab);
   const [q, setQ] = useState('');
   const [cls, setCls] = useState('');
+  const [prog, setProg] = useState<Program | ''>('');
   const [limit, setLimit] = useState(100);
 
   const athletes = useMemo(() => accounts.flatMap((a) => a.members.map((m) => ({ ...m, account: a, cls: classesOf(m, today, useRegs) }))), [accounts, today, useRegs]);
@@ -38,14 +39,17 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab, use
     return [...c.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [athletes]);
   const inClass = athletes.filter((m) => m.cls.active.length > 0).length;
+  const inProg = (m: (typeof athletes)[number], p: Program) => m.cls.active.some((n) => programOf(n) === p);
+  const progCounts = PROGRAMS.map((p) => ({ ...p, n: athletes.filter((m) => inProg(m, p.key)).length }));
+  const matches = (m: (typeof athletes)[number]) => (!cls || m.cls.active.includes(cls)) && (!prog || inProg(m, prog));
 
   const needle = q.trim().toLowerCase();
   const hit = (...vals: (string | null | undefined)[]) => !needle || vals.some((v) => v?.toLowerCase().includes(needle));
   const famRows = accounts.filter((a) =>
-    (!cls || athletes.some((m) => m.account.id === a.id && m.cls.active.includes(cls))) &&
+    (!(cls || prog) || athletes.some((m) => m.account.id === a.id && matches(m))) &&
     (hit(full(a.first_name, a.last_name), a.email, a.mobile, a.phone) || a.members.some((m) => hit(full(m.first_name, m.last_name)))));
   const athRows = athletes.filter((m) =>
-    (!cls || m.cls.active.includes(cls)) &&
+    matches(m) &&
     hit(full(m.first_name, m.last_name), full(m.account.first_name, m.account.last_name), m.account.email));
   const shown = tab === 'families' ? famRows.length : athRows.length;
 
@@ -54,6 +58,17 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab, use
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[['Families', accounts.length], ['Athletes', athletes.length], ['Athletes in a class', inClass], ['Classes', classList.length]].map(([l, n]) => (
           <div key={l} className="card p-4"><div className="text-sm font-semibold text-slate-brand">{l}</div><div className="mt-1 font-display text-4xl leading-none text-navy tabular-nums">{n}</div></div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label="Athletes by program">
+        {progCounts.map((p) => (
+          <button key={p.key} type="button" aria-pressed={prog === p.key}
+            onClick={() => { setProg(prog === p.key ? '' : p.key); setTab('athletes'); setLimit(100); }}
+            className={`card flex items-center justify-between px-4 py-3 text-left transition ${prog === p.key ? 'ring-2 ring-navy' : 'hover:bg-[#f8f9fc]'}`}>
+            <span className="text-sm font-semibold text-slate-brand">{p.label}</span>
+            <span className="font-display text-3xl leading-none text-navy tabular-nums">{p.n}</span>
+          </button>
         ))}
       </div>
 
@@ -78,6 +93,7 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab, use
           <option value="">All classes</option>
           {classList.map(([n, c]) => <option key={n} value={n}>{n} ({c})</option>)}
         </select>
+        {prog && <button type="button" className="chip bg-navy-50 text-navy" onClick={() => setProg('')}>{PROGRAMS.find((p) => p.key === prog)?.label} ✕</button>}
         <span className="text-sm text-slate-brand"><strong className="text-[#1b2433]">{shown}</strong> {tab}</span>
       </div>
 
