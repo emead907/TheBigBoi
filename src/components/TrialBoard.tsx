@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Trial } from '@/lib/types';
-import { STAGES, STATUS_LABEL, waitlistPositions, type Stage } from '@/lib/stages';
+import { STAGES, statusOptions, statusPatch, statusText, statusValue, waitlistPositions, type Stage } from '@/lib/stages';
 import { ageOn, formatDay } from '@/lib/dates';
 import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Avatar, CheckBox, PageHeader, splitClass } from './ui';
@@ -306,8 +306,8 @@ function Cells({ t, view, save, mobile, pos }: { t: Row; view: Stage | 'search';
       <Cell label="First day"><span className="font-semibold">{formatDay(t.first_day)}</span>{t.showed_up === false && <span className="ml-1 text-xs text-red-600">no-show</span>}</Cell>
       <Cell label="Followed up" center><CheckBox label={`Followed up: ${t.child_name}`} checked={!!t.followed_up_at} onChange={(v) => save(t.id, { followed_up_at: stamp(v) })} /></Cell>
       <Cell label="Status">
-        <select aria-label={`Status for ${t.child_name}`} value={t.status} onChange={(e) => save(t.id, { status: e.target.value as Trial['status'] })} className="input h-9 w-40 py-1">
-          {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        <select aria-label={`Status for ${t.child_name}`} value={statusValue(t)} onChange={(e) => save(t.id, statusPatch(e.target.value))} className="input h-9 w-52 py-1">
+          {statusOptions(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </Cell>
     </>
@@ -315,7 +315,7 @@ function Cells({ t, view, save, mobile, pos }: { t: Row; view: Stage | 'search';
   return (
     <>
       <Cell label="Stage">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold"><span className={`h-2 w-2 rounded-full ${DOT[t.stage]}`} />{STAGES.find((s) => s.key === t.stage)?.label}</span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold"><span className={`h-2 w-2 rounded-full ${DOT[t.stage]}`} />{t.status === 'open' ? STAGES.find((s) => s.key === t.stage)?.label : statusText(t)}</span>
       </Cell>
       <Cell label="First day"><span>{formatDay(t.first_day) || '—'}</span></Cell>
     </>

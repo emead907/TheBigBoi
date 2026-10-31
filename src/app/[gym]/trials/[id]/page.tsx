@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
-import { stageOf, waitlistPositions } from '@/lib/stages';
+import { stageOf, statusText, waitlistPositions } from '@/lib/stages';
 import { ageOn, formatDateTime, formatDay } from '@/lib/dates';
 import { TRIAL_KEYS, type Activity, type Template, type Trial } from '@/lib/types';
 import { renderTemplate, templateVars } from '@/lib/templates';
@@ -55,7 +55,7 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
   ];
   const current = steps.findIndex((s) => !s.done);
   const closed = trial.status === 'not_enrolling' || trial.status === 'no_show';
-  const badge = closed ? (trial.status === 'no_show' ? 'No-show' : 'Not enrolling') : trial.status === 'enrolled' ? 'Enrolled' : stage === 'waitlist' ? 'Waitlist' : 'In progress';
+  const badge = closed ? (trial.status === 'no_show' ? 'No-show' : 'Not enrolling') : trial.status === 'enrolled' ? statusText(trial) : stage === 'waitlist' ? 'Waitlist' : 'In progress';
 
   const checklist: CheckItem[] = [
     { id: 'in_sportsengine', label: 'Added to SportsEngine', done: trial.in_sportsengine, sub: trial.in_sportsengine ? `Completed by ${by(/SportsEngine/, null)}` : 'Add the family before their first day' },

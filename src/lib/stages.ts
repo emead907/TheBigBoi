@@ -32,6 +32,36 @@ export const STATUS_LABEL: Record<Trial['status'], string> = {
   no_show: 'No-show',
 };
 
+/** Status dropdown choices. "Enrolled" is split by plan but both land in the Enrolled tab. */
+export const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'open', label: 'In progress' },
+  { value: 'enrolled:six_month', label: 'Enrolled – 6 months' },
+  { value: 'enrolled:month_to_month', label: 'Enrolled – month to month' },
+  { value: 'not_enrolling', label: 'Not enrolling' },
+  { value: 'no_show', label: 'No-show' },
+];
+
+export function statusValue(t: Pick<Trial, 'status' | 'enroll_plan'>): string {
+  return t.status === 'enrolled' && t.enroll_plan ? `enrolled:${t.enroll_plan}` : t.status;
+}
+
+/** Dropdown value → the fields to save. */
+export function statusPatch(value: string): Pick<Trial, 'status' | 'enroll_plan'> {
+  const [status, plan] = value.split(':');
+  return { status: status as Trial['status'], enroll_plan: status === 'enrolled' ? ((plan as Trial['enroll_plan']) ?? null) : null };
+}
+
+export function statusText(t: Pick<Trial, 'status' | 'enroll_plan'>): string {
+  return STATUS_OPTIONS.find((o) => o.value === statusValue(t))?.label ?? STATUS_LABEL[t.status];
+}
+
+/** Options for one trial (keeps a plain "Enrolled" for older records with no plan). */
+export function statusOptions(t: Pick<Trial, 'status' | 'enroll_plan'>) {
+  return t.status === 'enrolled' && !t.enroll_plan
+    ? [STATUS_OPTIONS[0], { value: 'enrolled', label: 'Enrolled' }, ...STATUS_OPTIONS.slice(1)]
+    : STATUS_OPTIONS;
+}
+
 /** Checklist items still to do for a trial in its current stage. */
 export function nextSteps(t: Trial, stage: Stage): string[] {
   const out: string[] = [];

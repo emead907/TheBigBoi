@@ -145,3 +145,14 @@ Can we bring a cake?`);
     party_date: '2026-12-13', time_slot: '11:00 AM – 12:30 PM', num_children: '10', children_ages: '7-10', theme: 'Blue and red',
     add_ons: ['Goodie Bags', 'Pizza'], comments: 'Can we bring a cake?' });
 });
+
+import { statusPatch, statusText, statusValue } from '../src/lib/stages';
+describe('enrollment plans', () => {
+  it('maps the dropdown to status + plan and back', () => {
+    expect(statusPatch('enrolled:six_month')).toEqual({ status: 'enrolled', enroll_plan: 'six_month' });
+    expect(statusPatch('not_enrolling')).toEqual({ status: 'not_enrolling', enroll_plan: null });
+    expect(statusValue({ status: 'enrolled', enroll_plan: 'month_to_month' })).toBe('enrolled:month_to_month');
+    expect(statusText({ status: 'enrolled', enroll_plan: null })).toBe('Enrolled');
+    expect(statusText({ status: 'enrolled', enroll_plan: 'six_month' })).toBe('Enrolled – 6 months');
+  });
+});

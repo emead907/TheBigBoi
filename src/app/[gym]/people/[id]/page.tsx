@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { ageOn, formatDay } from '@/lib/dates';
 import { className, regState } from '@/lib/people';
-import { stageOf, STAGES, STATUS_LABEL } from '@/lib/stages';
+import { stageOf, STAGES, statusText } from '@/lib/stages';
 import type { Trial } from '@/lib/types';
 import { Avatar, Card } from '@/components/ui';
 import { ArrowLeft, Calendar } from '@/components/icons';
@@ -108,7 +108,7 @@ export default async function FamilyPage({ params }: { params: { gym: string; id
                   return (
                     <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                       <Link href={`/${ctx.gym.slug}/trials/${t.id}`} className="font-semibold hover:text-navy hover:underline">{t.child_name} · {t.class_name}</Link>
-                      <span className="text-xs text-slate-brand">{formatDay(t.received_at.slice(0, 10), { year: true })} · {t.status === 'open' ? STAGES.find((s) => s.key === st)?.label : STATUS_LABEL[t.status]}</span>
+                      <span className="text-xs text-slate-brand">{formatDay(t.received_at.slice(0, 10), { year: true })} · {t.status === 'open' ? STAGES.find((s) => s.key === st)?.label : statusText(t)}</span>
                     </li>
                   );
                 })}

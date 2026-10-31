@@ -2,7 +2,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Trial } from '@/lib/types';
-import { STATUS_LABEL } from '@/lib/stages';
+import { statusOptions, statusPatch, statusValue } from '@/lib/stages';
 import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Card, CheckBox } from './ui';
 import { Clock, Edit, Trash } from './icons';
@@ -28,9 +28,9 @@ export function StatusSelect({ slug, trial }: { slug: string; trial: Trial }) {
   return (
     <label className="flex items-center gap-3">
       <span className="eyebrow">Status</span>
-      <select id="status" className="input h-11 w-48 font-semibold" value={trial.status} disabled={pending}
-        onChange={(e) => save({ status: e.target.value as Trial['status'] })}>
-        {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      <select id="status" className="input h-11 w-60 font-semibold" value={statusValue(trial)} disabled={pending}
+        onChange={(e) => save(statusPatch(e.target.value))}>
+        {statusOptions(trial).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </label>
   );

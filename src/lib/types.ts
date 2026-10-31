@@ -62,6 +62,7 @@ export interface Trial {
   offered_at: string | null;
   followup_sent_at: string | null;
   followup2_sent_at?: string | null;
+  enroll_plan?: 'six_month' | 'month_to_month' | null;
   external_id: string | null;
   created_at: string;
   updated_at: string;

@@ -8,7 +8,7 @@ import { getGymContext } from '@/lib/gym';
 import { formatDay } from '@/lib/dates';
 import { formatPhone, parseDateLoose } from '@/lib/parse';
 import { sendTemplate } from '@/lib/messaging';
-import { STATUS_LABEL } from '@/lib/stages';
+import { statusText } from '@/lib/stages';
 import type { Channel, Template, TemplateKey, Trial, TrialStatus } from '@/lib/types';
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
@@ -16,7 +16,7 @@ export type ActionResult = { ok: true; message?: string } | { ok: false; error: 
 const EDITABLE = [
   'child_name', 'birthday', 'class_name', 'requested_time', 'parent_name', 'parent_email', 'parent_phone',
   'zip', 'sms_opt_in', 'in_sportsengine', 'spot_email_sent_at', 'called_at', 'first_day', 'first_day_time',
-  'showed_up', 'status', 'followed_up_at', 'notes', 'waitlisted_at', 'offered_at',
+  'showed_up', 'status', 'enroll_plan', 'followed_up_at', 'notes', 'waitlisted_at', 'offered_at',
 ] as const;
 type Editable = (typeof EDITABLE)[number];
 export type TrialPatch = Partial<Pick<Trial, Editable>>;
@@ -30,7 +30,7 @@ function describe(patch: TrialPatch): string[] {
   if (has('first_day')) out.push(patch.first_day ? `First day set to ${formatDay(patch.first_day)}` : 'First day cleared');
   if (has('first_day_time') && !has('first_day')) out.push(patch.first_day_time ? `First-day time set to ${patch.first_day_time}` : 'First-day time cleared');
   if (has('showed_up')) out.push(patch.showed_up === true ? 'Showed up' : patch.showed_up === false ? 'Did not show up' : 'Attendance cleared');
-  if (has('status')) out.push(`Status: ${STATUS_LABEL[patch.status as TrialStatus]}`);
+  if (has('status')) out.push(`Status: ${statusText({ status: patch.status as TrialStatus, enroll_plan: patch.enroll_plan ?? null })}`);
   if (has('followed_up_at')) out.push(patch.followed_up_at ? 'Marked followed up' : 'Unchecked followed up');
   if (has('sms_opt_in')) out.push(patch.sms_opt_in ? 'Family agreed to texts' : 'Texts turned off');
   if (has('waitlisted_at')) out.push(patch.waitlisted_at ? 'Added to the waitlist' : 'Removed from the waitlist');
