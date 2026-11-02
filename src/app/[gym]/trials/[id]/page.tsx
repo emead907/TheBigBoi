@@ -4,9 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { stageOf, statusText, waitlistPositions } from '@/lib/stages';
 import { ageOn, formatDateTime, formatDay } from '@/lib/dates';
-import { TRIAL_KEYS, type Activity, type Template, type Trial } from '@/lib/types';
-import { renderTemplate, templateVars } from '@/lib/templates';
-import { channelReady, recipientProblem, TEMPLATE_LABEL } from '@/lib/messaging';
+import type { Activity, Template, Trial } from '@/lib/types';
+import { trialSendOptions } from '@/lib/messaging';
 import SendPanel from '@/components/SendPanel';
 import { Avatar, Card, splitClass } from '@/components/ui';
 import { ArrowLeft, Calendar, Check, Mail, Message, Note, Phone, UserPlus } from '@/components/icons';
@@ -67,17 +66,7 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
     checklist.push({ id: 'followed_up_at', label: 'Followed up after first day', done: !!trial.followed_up_at, sub: trial.followed_up_at ? `Completed by ${by(/followed up|Follow-up/i, trial.followed_up_at)}` : 'Ask how it went and if they’re enrolling' });
   }
 
-  const vars = templateVars(trial, ctx.gym);
-  const order: string[] = TRIAL_KEYS;
-  const options = ((tpls ?? []) as Template[])
-    .filter((t) => order.includes(t.key))
-    .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key) || a.channel.localeCompare(b.channel))
-    .map((t) => ({
-      key: t.key, channel: t.channel, label: TEMPLATE_LABEL[t.key],
-      subject: t.subject ? renderTemplate(t.subject, vars) : null,
-      body: renderTemplate(t.body, vars),
-      blocked: channelReady(t.channel, ctx.gym) ?? recipientProblem(t.channel, trial),
-    }));
+  const options = trialSendOptions((tpls ?? []) as Template[], trial, ctx.gym);
   const suggested = stage === 'new' ? 'spot_ready' : stage === 'upcoming' ? 'first_day_reminder' : trial.followup_sent_at || trial.followed_up_at ? 'follow_up_2' : 'follow_up';
 
   const notesBy = activity.find((a) => a.detail === 'Updated notes');

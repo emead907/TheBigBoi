@@ -1,7 +1,7 @@
 import 'server-only';
 import { Resend } from 'resend';
 import twilio from 'twilio';
-import type { Channel, Gym, Template, TemplateKey, Trial } from './types';
+import { TRIAL_KEYS, type Channel, type Gym, type Template, type TemplateKey, type Trial } from './types';
 import { emailHtml, partyVars, renderTemplate, templateVars } from './templates';
 import type { Party } from './parties';
 import { toE164 } from './parse';
@@ -130,6 +130,21 @@ export async function sendPartyTemplate(opts: {
     await db.from('parties').update(patch).eq('id', party.id);
   }
   return result;
+}
+
+/** Rendered previews of a trial's message templates, for the send panel. */
+export function trialSendOptions(templates: Template[], trial: Trial, gym: Gym) {
+  const vars = templateVars(trial, gym);
+  const order: string[] = TRIAL_KEYS;
+  return templates
+    .filter((t) => order.includes(t.key))
+    .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key) || a.channel.localeCompare(b.channel))
+    .map((t) => ({
+      key: t.key, channel: t.channel, label: TEMPLATE_LABEL[t.key],
+      subject: t.subject ? renderTemplate(t.subject, vars) : null,
+      body: renderTemplate(t.body, vars),
+      blocked: channelReady(t.channel, gym) ?? recipientProblem(t.channel, trial),
+    }));
 }
 
 export const TEMPLATE_LABEL: Record<TemplateKey, string> = {

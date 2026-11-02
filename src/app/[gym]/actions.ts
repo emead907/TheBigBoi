@@ -7,7 +7,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getGymContext } from '@/lib/gym';
 import { formatDay } from '@/lib/dates';
 import { formatPhone, parseDateLoose } from '@/lib/parse';
-import { sendTemplate } from '@/lib/messaging';
+import { sendTemplate, trialSendOptions } from '@/lib/messaging';
+import type { SendOption } from '@/components/SendPanel';
 import { statusText } from '@/lib/stages';
 import type { Channel, Template, TemplateKey, Trial, TrialStatus } from '@/lib/types';
 
@@ -64,6 +65,18 @@ export async function updateTrial(slug: string, id: string, raw: TrialPatch): Pr
   }
   revalidatePath(`/${slug}`, 'layout');
   return { ok: true };
+}
+
+/** Message previews for one request, so the board can send without opening the full page. */
+export async function getTrialSendOptions(slug: string, id: string): Promise<{ ok: true; options: SendOption[] } | { ok: false; error: string }> {
+  const ctx = await getGymContext(slug);
+  const supabase = createClient();
+  const [{ data: trial }, { data: tpls }] = await Promise.all([
+    supabase.from('trials').select('*').eq('id', id).eq('gym_id', ctx.gym.id).single(),
+    supabase.from('templates').select('*').eq('gym_id', ctx.gym.id),
+  ]);
+  if (!trial) return { ok: false, error: 'Request not found.' };
+  return { ok: true, options: trialSendOptions((tpls ?? []) as Template[], trial as Trial, ctx.gym) };
 }
 
 export async function sendTrialMessage(slug: string, id: string, key: TemplateKey, channel: Channel): Promise<ActionResult> {

@@ -1,11 +1,12 @@
 'use client';
 import Link from 'next/link';
-import { useMemo, useOptimistic, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useOptimistic, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Trial } from '@/lib/types';
 import { STAGES, statusOptions, statusPatch, statusText, statusValue, waitlistPositions, type Stage } from '@/lib/stages';
 import { ageOn, formatDay } from '@/lib/dates';
-import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
+import { deleteTrial, getTrialSendOptions, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
+import SendPanel, { type SendOption } from './SendPanel';
 import { Avatar, CheckBox, PageHeader, splitClass } from './ui';
 import { Calendar, ChevronRight, Plus, Search, Trash } from './icons';
 
@@ -24,6 +25,8 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [, startTransition] = useTransition();
+  const [sendFor, setSendFor] = useState<Row | null>(null);
+  const closeSend = useCallback(() => setSendFor(null), []);
   const [rows, applyOptimistic] = useOptimistic(trials, (state, u: { id: string; patch?: TrialPatch; remove?: boolean }) =>
     u.remove ? state.filter((t) => t.id !== u.id) : state.map((t) => (t.id === u.id ? ({ ...t, ...u.patch } as Row) : t)));
 
@@ -148,7 +151,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
                           <div className="text-xs text-slate-brand">{t.parent_phone}</div>
                         </td>
                         <td className="px-3 py-4"><Received iso={t.received_at} timezone={timezone} late={late} /></td>
-                        <Cells t={t} view={view} save={save} pos={positions[t.id]} />
+                        <Cells onSend={setSendFor} t={t} view={view} save={save} pos={positions[t.id]} />
                         <td className="pr-4">
                           <div className="flex items-center justify-end gap-1">
                             {canDelete && (
@@ -194,7 +197,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
                     {t.parent_phone && <a href={`tel:${t.parent_phone}`} className="btn-ghost rounded-lg px-3 py-1.5 text-xs">{t.parent_phone}</a>}
                   </div>
                   <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-[#edf0f4] px-4 py-3">
-                    <Cells t={t} view={view} save={save} pos={positions[t.id]} mobile />
+                    <Cells onSend={setSendFor} t={t} view={view} save={save} pos={positions[t.id]} mobile />
                   </div>
                 </li>
               );
@@ -202,6 +205,7 @@ export default function TrialBoard({ slug, timezone, today, trials, initialStage
           </ul>
         </>
       )}
+      {sendFor && <QuickSend slug={slug} t={rows.find((r) => r.id === sendFor.id) ?? sendFor} onClose={closeSend} />}
     </div>
   );
 }
@@ -249,7 +253,7 @@ function DatePill({ t, save }: { t: Row; save: (id: string, p: TrialPatch) => vo
   );
 }
 
-function Cells({ t, view, save, mobile, pos }: { t: Row; view: Stage | 'search'; save: (id: string, p: TrialPatch) => void; mobile?: boolean; pos?: number }) {
+function Cells({ onSend, t, view, save, mobile, pos }: { onSend: (t: Row) => void; t: Row; view: Stage | 'search'; save: (id: string, p: TrialPatch) => void; mobile?: boolean; pos?: number }) {
   const Cell = ({ children, label, center }: { children: React.ReactNode; label: string; center?: boolean }) =>
     mobile
       ? <div className="flex flex-col items-center gap-1"><span className="eyebrow text-[10px]">{label}</span>{children}</div>
@@ -281,9 +285,10 @@ function Cells({ t, view, save, mobile, pos }: { t: Row; view: Stage | 'search';
     <>
       <Cell label="First day"><DatePill t={t} save={save} /></Cell>
       <Cell label="Reminder">
-        <span className={`chip ${t.reminder_sent_at ? 'bg-[#e3f3e9] text-stage-won' : 'bg-[#eef1f6] text-slate-brand'}`}>
+        <button type="button" onClick={() => onSend(t)} title="Preview and send the first-day reminder"
+          className={`chip cursor-pointer transition hover:ring-2 hover:ring-navy/30 ${t.reminder_sent_at ? 'bg-[#e3f3e9] text-stage-won' : 'bg-[#eef1f6] text-slate-brand hover:text-navy'}`}>
           {t.reminder_sent_at ? 'Sent' : 'Night before'}
-        </span>
+        </button>
       </Cell>
     </>
   );
@@ -319,5 +324,31 @@ function Cells({ t, view, save, mobile, pos }: { t: Row; view: Stage | 'search';
       </Cell>
       <Cell label="First day"><span>{formatDay(t.first_day) || '—'}</span></Cell>
     </>
+  );
+}
+
+/** Message preview + send, opened from the reminder chip on the Upcoming tab. */
+function QuickSend({ slug, t, onClose }: { slug: string; t: Row; onClose: () => void }) {
+  const [options, setOptions] = useState<SendOption[] | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let live = true;
+    getTrialSendOptions(slug, t.id).then((r) => { if (!live) return; if (r.ok) setOptions(r.options); else setError(r.error); });
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => { live = false; window.removeEventListener('keydown', esc); };
+  }, [slug, t.id, onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#0b1630]/50 p-4 pt-[8vh]" role="dialog" aria-modal="true"
+      aria-label={`Message ${t.parent_name ?? t.child_name}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-full max-w-md text-left">
+        <button type="button" aria-label="Close" onClick={onClose}
+          className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-slate-brand hover:bg-[#eef1f6] hover:text-navy">×</button>
+        {error ? <div className="card p-6 text-sm text-red-700">{error}</div>
+          : !options ? <div className="card p-6 text-sm text-slate-brand">Loading preview…</div>
+          : <SendPanel slug={slug} trialId={t.id} options={options} suggested="first_day_reminder" />}
+        <p className="mt-2 text-center text-xs text-white/90">To {t.parent_name ?? 'parent'} about {t.child_name}{t.reminder_sent_at ? ' · reminder already sent' : ''}</p>
+      </div>
+    </div>
   );
 }
