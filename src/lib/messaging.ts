@@ -2,7 +2,7 @@ import 'server-only';
 import { Resend } from 'resend';
 import twilio from 'twilio';
 import { TRIAL_KEYS, type Channel, type Gym, type Template, type TemplateKey, type Trial } from './types';
-import { emailHtml, partyVars, renderTemplate, templateVars } from './templates';
+import { emailHtml, partyVars, plainLinks, renderTemplate, templateVars } from './templates';
 import type { Party } from './parties';
 import { toE164 } from './parse';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -40,13 +40,13 @@ async function deliver(gym: Gym, channel: Channel, to: string, subject: string |
       const resend = new Resend(process.env.RESEND_API_KEY);
       const { data, error } = await resend.emails.send({
         from: gym.from_email!, to, replyTo: gym.email ?? undefined,
-        subject: subject ?? gym.name, text: body, html: emailHtml(body, gym),
+        subject: subject ?? gym.name, text: plainLinks(body), html: emailHtml(body, gym),
       });
       if (error) throw new Error(error.message);
       providerId = data?.id ?? null;
     } else {
       const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-      const msg = await client.messages.create({ from: gym.sms_from!, to, body });
+      const msg = await client.messages.create({ from: gym.sms_from!, to, body: plainLinks(body) });
       providerId = msg.sid;
     }
     return { result: { ok: true, status: 'sent' } as SendResult, providerId };

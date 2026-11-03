@@ -22,6 +22,7 @@ export function GymForm({ slug, gym }: { slug: string; gym: Gym }) {
     ['phone', 'Phone', '(208) 866-2699'], ['email', 'Reply-to email', 'gymstarsidahoinfo@gmail.com'],
     ['from_email', 'Send emails from', 'Gym Stars Gymnastics <hello@gymstarsidaho.com>'],
     ['sms_from', 'Texting number (Twilio)', '+12085551234'], ['address', 'Address', ''], ['website', 'Website', 'https://'],
+    ['waiver_url', 'Parent portal waiver link (class emails)', 'https://www.gomotionapp.com/Login5.jsp?…'],
   ];
   return (
     <section className="card p-5">

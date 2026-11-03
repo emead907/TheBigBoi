@@ -4,7 +4,7 @@ import { formatDay } from './dates';
 
 const first = (s: string | null | undefined, fallback: string) => (s ?? '').trim().split(/\s+/)[0] || fallback;
 
-export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'phone'> & { website?: string | null }): Record<string, string> {
+export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'phone'> & { website?: string | null; waiver_url?: string | null }): Record<string, string> {
   return {
     parent_first: first(t.parent_name, 'there'),
     child_first: first(t.child_name, 'your child'),
@@ -16,6 +16,7 @@ export function templateVars(t: Trial, gym: Pick<Gym, 'name' | 'short_name' | 'p
     gym_name: gym.short_name || gym.name,
     gym_phone: gym.phone || '',
     portal_link: siteLink(gym, '/parent-portal'),
+    waiver_link: gym.waiver_url || siteLink(gym, '/parent-portal'),
   };
 }
 
@@ -71,7 +72,28 @@ export function renderTemplate(text: string, vars: Record<string, string>): stri
 }
 
 function esc(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Links in templates are written [text](url). */
+export const LINK_RE = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
+
+/** Plain-text version (texts, and the text part of emails): "text: url". A link with no address keeps just its text. */
+export function plainLinks(s: string): string {
+  return s.replace(LINK_RE, '$1: $2').replace(/\[([^\]\n]+)\]\(\s*\)/g, '$1');
+}
+
+/** Escapes a line of text and turns [text](url) and bare URLs into links. */
+function inline(s: string, color: string): string {
+  const a = (href: string, text: string) => `<a href="${esc(href)}" style="color:${color};font-weight:bold;text-decoration:underline;">${esc(text)}</a>`;
+  let out = ''; let last = 0;
+  const re = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|\[([^\]\n]+)\]\(\s*\)|(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g;
+  for (let m; (m = re.exec(s)); ) {
+    out += esc(s.slice(last, m.index));
+    out += m[1] ? a(m[2], m[1]) : m[3] ? esc(m[3]) : a(m[4], m[4]);
+    last = m.index + m[0].length;
+  }
+  return out + esc(s.slice(last));
 }
 
 /** Simple branded HTML version of a plain-text email body. */
@@ -81,8 +103,8 @@ export function emailHtml(body: string, gym: Pick<Gym, 'name' | 'phone' | 'addre
     const heading = /^[A-Z0-9 '&-]{4,}$/.test(lines[0].trim()) ? lines.shift()!.trim() : null;
     const isList = lines.length > 0 && lines.every((l) => /^\s*[-•]\s+/.test(l));
     const inner = isList
-      ? `<ul style="margin:0;padding-left:20px;">${lines.map((l) => `<li style="margin:0 0 4px;">${esc(l.replace(/^\s*[-•]\s+/, ''))}</li>`).join('')}</ul>`
-      : `<p style="margin:0;">${lines.map(esc).join('<br>')}</p>`;
+      ? `<ul style="margin:0;padding-left:20px;">${lines.map((l) => `<li style="margin:0 0 4px;">${inline(l.replace(/^\s*[-•]\s+/, ''), gym.brand_color)}</li>`).join('')}</ul>`
+      : `<p style="margin:0;">${lines.map((l) => inline(l, gym.brand_color)).join('<br>')}</p>`;
     return `${heading ? `<div style="font-size:12px;font-weight:bold;letter-spacing:1.5px;color:${gym.brand_color};margin:0 0 4px;">${esc(heading)}</div>` : ''}${inner}`;
   });
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f1f4;">

@@ -28,7 +28,7 @@ WHAT TO WEAR
 A leotard, or shorts and a t-shirt, works great. Kids go barefoot on the floor, so no shoes or socks. Please have long hair pulled back and leave jewelry at home.
 
 SIGN THE WAIVER
-Before class, please sign the waiver in your parent portal. It only takes a minute, and it's required before kids can get on the floor.
+Before class, please [sign the waiver in your parent portal]({{waiver_link}}). It only takes a minute, and it's required before kids can get on the floor.
 
 NO-RISK FIRST DAY
 Nothing is charged at class. Tuition and the $50 registration fee bill at the end of the next day. If it's not the right fit, just let us know within 24 hours of class and you won't be charged anything at all.
@@ -43,7 +43,7 @@ Just a reminder that {{child_first}}'s first day in {{class}} is tomorrow, {{fir
 
 A few quick reminders:
 - Wear a leotard, or shorts and a t-shirt. Bare feet, hair pulled back, no jewelry.
-- Please sign the waiver in your parent portal before class if you haven't yet.
+- Please [sign the waiver in your parent portal]({{waiver_link}}) before class if you haven't yet.
 - Arrive a few minutes early so we can help {{child_first}} find their class.
 
 See you tomorrow!$$, true),

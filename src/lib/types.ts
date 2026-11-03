@@ -19,6 +19,7 @@ export interface Gym {
   sms_from: string | null;
   address: string | null;
   website: string | null;
+  waiver_url?: string | null;
   timezone: string;
   brand_color: string;
   accent_color: string;

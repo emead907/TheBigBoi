@@ -26,3 +26,22 @@ describe('requested_day', () => {
     expect(weekdayOf('4:30 PM')).toBe('');
   });
 });
+
+import { emailHtml, plainLinks, templateVars } from '../src/lib/templates';
+describe('waiver links', () => {
+  const url = 'https://www.gomotionapp.com/Login5.jsp?team=idgs&_tu_Login_Redirect_=%2Fteam%2Fidgs%2Fcontroller%2Fcms%2Fadmin%2Findex%23%2Fmy-account%2Fagreements';
+  const body = 'Please [sign the waiver in your parent portal](' + url + ') before class.';
+  it('makes a clickable link in the email', () => {
+    const html = emailHtml(body, { name: 'Gym Stars', phone: '', address: '', brand_color: '#004380' });
+    expect(html).toContain('<a href="' + url.replace(/&/g, '&amp;') + '"');
+    expect(html).toContain('>sign the waiver in your parent portal</a> before class.');
+  });
+  it('spells out the address in texts', () => {
+    expect(plainLinks(body)).toBe('Please sign the waiver in your parent portal: ' + url + ' before class.');
+    expect(plainLinks('Please [sign the waiver]() now')).toBe('Please sign the waiver now');
+  });
+  it('uses the gym waiver link for class emails', () => {
+    const v = templateVars({ child_name: 'Mia' } as never, { name: 'G', short_name: 'G', phone: '', website: 'https://gymstarsidaho.com', waiver_url: url });
+    expect(v.waiver_link).toBe(url);
+  });
+});

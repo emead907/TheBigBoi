@@ -5,6 +5,20 @@ import type { Channel, PartyTemplateKey, TemplateKey } from '@/lib/types';
 import { sendTrialMessage } from '@/app/[gym]/actions';
 import { sendPartyMessage } from '@/app/[gym]/parties/actions';
 import { Card } from './ui';
+import { plainLinks } from '@/lib/templates';
+
+/** Shows [text](url) as a link in the preview, like it will look in the email. */
+function withLinks(text: string) {
+  const parts: React.ReactNode[] = []; let last = 0;
+  const re = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]*)\)|\[([^\]\n]+)\]\(\s*\)/g;
+  for (let m; (m = re.exec(text)); ) {
+    parts.push(text.slice(last, m.index));
+    parts.push(m[1] ? <a key={m.index} href={m[2]} target="_blank" rel="noreferrer" className="font-semibold text-navy underline">{m[1]}</a> : m[3]);
+    last = m.index + m[0].length;
+  }
+  parts.push(text.slice(last));
+  return parts;
+}
 import { Mail, Message, Send } from './icons';
 
 export interface SendOption {
@@ -62,7 +76,7 @@ export default function SendPanel({ slug, trialId, partyId, options, suggested =
         {o ? (
           <div className="mt-2 max-h-72 overflow-y-auto text-xs leading-relaxed">
             {o.subject && <div className="mb-2 text-sm font-semibold text-navy">{o.subject}</div>}
-            <p className="whitespace-pre-line text-[#3b4658]">{o.body}</p>
+            <p className="whitespace-pre-line text-[#3b4658]">{channel === 'sms' ? plainLinks(o.body) : withLinks(o.body)}</p>
           </div>
         ) : <p className="mt-2 text-xs text-slate-brand">No {channel === 'email' ? 'email' : 'text'} template for this yet. A manager can add one in Settings.</p>}
       </div>
