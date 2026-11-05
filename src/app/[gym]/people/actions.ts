@@ -127,6 +127,11 @@ export async function importRegistrations(slug: string, rows: RegistrationRow[])
     const { error } = await db.from('registrations').upsert(payload.slice(i, i + 500), { onConflict: 'gym_id,match_key' });
     if (error) return { ok: false, error: error.message };
   }
+  // Classes added from the Hub when a request was marked enrolled are replaced by the real GoMotion ones.
+  const linkedIds = [...new Set(payload.map((p) => p.member_id).filter(Boolean))] as string[];
+  for (let i = 0; i < linkedIds.length; i += 200) {
+    await db.from('registrations').delete().eq('gym_id', ctx.gym.id).like('match_key', 'hub:%').in('member_id', linkedIds.slice(i, i + 200));
+  }
   revalidatePath(`/${slug}/people`, 'layout');
   return { ok: true, total: rows.length, added: rows.filter((r) => !have.has(r.match_key)).length, linked: payload.filter((p) => p.member_id).length, unlinked: [...unlinked].sort() };
 }

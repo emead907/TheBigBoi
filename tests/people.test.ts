@@ -56,3 +56,11 @@ describe('programOf', () => {
       .toEqual(['ninja', 'preschool', 'team', 'rec', 'rec', 'team', 'rec', 'rec', 'rec', 'rec']);
   });
 });
+
+import { familyKey } from '../src/lib/enroll';
+describe('familyKey', () => {
+  it('matches the GoMotion import key', () => {
+    expect(familyKey({ parent_email: ' Ajep22@Gmail.com ', parent_name: 'A P', parent_phone: '(208) 922-0887' })).toBe('ajep22@gmail.com');
+    expect(familyKey({ parent_email: null, parent_name: 'Natasha Boschma', parent_phone: '(208) 731-0696' })).toBe('name:natasha boschma|2087310696');
+  });
+});

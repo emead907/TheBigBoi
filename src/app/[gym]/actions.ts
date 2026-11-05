@@ -10,6 +10,7 @@ import { formatPhone, parseDateLoose } from '@/lib/parse';
 import { sendTemplate, trialSendOptions } from '@/lib/messaging';
 import type { SendOption } from '@/components/SendPanel';
 import { statusText } from '@/lib/stages';
+import { addEnrolledToPeople } from '@/lib/enroll';
 import type { Channel, Template, TemplateKey, Trial, TrialStatus } from '@/lib/types';
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
@@ -58,13 +59,25 @@ export async function updateTrial(slug: string, id: string, raw: TrialPatch): Pr
   if (error) return { ok: false, error: error.message };
 
   const lines = describe(raw);
+  let note = '';
+  if (patch.status === 'enrolled') {
+    try {
+      const { data: t } = await supabase.from('trials').select('*').eq('id', id).single();
+      if (t) {
+        const r = await addEnrolledToPeople(createAdminClient(), ctx.gym.id, t as Trial, ctx.today);
+        lines.push(r.created.length ? `Added to People (new ${r.created.join(' and ')})` : 'Class added in People');
+      }
+    } catch (e) {
+      note = e instanceof Error ? e.message : String(e);
+    }
+  }
   if (lines.length) {
     await supabase.from('activity').insert(lines.map((detail) => ({
       gym_id: ctx.gym.id, trial_id: id, user_id: ctx.userId, actor: ctx.actor, kind: 'update', detail,
     })));
   }
   revalidatePath(`/${slug}`, 'layout');
-  return { ok: true };
+  return note ? { ok: false, error: `Marked enrolled, but ${note[0].toLowerCase()}${note.slice(1)}` } : { ok: true };
 }
 
 /** Message previews for one request, so the board can send without opening the full page. */
