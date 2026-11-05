@@ -4,6 +4,7 @@ import { getGymContext } from '@/lib/gym';
 import { PageHeader } from '@/components/ui';
 import PeopleDirectory, { type DirAccount, type DirReg } from '@/components/PeopleDirectory';
 import { UserPlus } from '@/components/icons';
+import { CatchUpButton } from '@/components/PeopleEditors';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export default async function PeoplePage({ params, searchParams }: { params: { g
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Families & athletes" title="People" subtitle="Everyone with an account at the gym, and the athletes on each account."
-        right={ctx.role === 'owner' ? <Link href={`/${ctx.gym.slug}/people/import`} className="btn-ghost rounded-xl"><UserPlus className="h-4 w-4" />Import from GoMotion</Link> : undefined} />
+        right={ctx.role === 'owner' ? <div className="flex flex-wrap items-center justify-end gap-2"><CatchUpButton slug={ctx.gym.slug} /><Link href={`/${ctx.gym.slug}/people/import`} className="btn-ghost rounded-xl"><UserPlus className="h-4 w-4" />Import from GoMotion</Link></div> : undefined} />
       {accounts.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="display text-2xl">No people yet</div>

@@ -19,7 +19,7 @@ export function familyKey(t: Pick<Trial, 'parent_email' | 'parent_name' | 'paren
  * and the class shows on the athlete. Finds existing records first so nothing is duplicated.
  * Uses the admin client (registrations are manager-only), always scoped to this gym.
  */
-export async function addEnrolledToPeople(db: SupabaseClient, gymId: string, t: Trial, today: string) {
+export async function addEnrolledToPeople(db: SupabaseClient, gymId: string, t: Trial, today: string, opts: { skipIfHasClass?: boolean } = {}) {
   const akey = familyKey(t);
   const parent = splitName(t.parent_name);
   const child = splitName(t.child_name);
@@ -54,7 +54,12 @@ export async function addEnrolledToPeople(db: SupabaseClient, gymId: string, t: 
 
   // Class (replaced by the real one on the next GoMotion registrations import)
   const cls = baseClass(t.class_name);
-  if (cls) {
+  let skip = false;
+  if (opts.skipIfHasClass) {
+    const { count } = await db.from('registrations').select('id', { count: 'exact', head: true }).eq('member_id', kid.id).eq('waitlisted', false).is('drop_date', null);
+    skip = (count ?? 0) > 0;
+  }
+  if (cls && !skip) {
     const { error } = await db.from('registrations').upsert({
       gym_id: gymId, member_id: kid.id, match_key: `hub:trial:${t.id}`,
       member_name: `${kid.first_name} ${kid.last_name ?? ''}`.trim(), birthday: kid.birthday ?? t.birthday,

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateAccount, updateMemberNotes } from '@/app/[gym]/people/actions';
+import { addRecentEnrollments, updateAccount, updateMemberNotes } from '@/app/[gym]/people/actions';
 import { Card } from './ui';
 import { Edit } from './icons';
 
@@ -47,5 +47,22 @@ export function MemberNotes({ slug, id, initial }: { slug: string; id: string; i
       )}
       {saved && <span className="ml-2 text-xs text-stage-won">{saved}</span>}
     </div>
+  );
+}
+
+export function CatchUpButton({ slug }: { slug: string }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState('');
+  return (
+    <span className="flex items-center gap-2">
+      {msg && <span role="status" className="text-xs text-slate-brand">{msg}</span>}
+      <button type="button" className="btn-ghost rounded-xl" disabled={pending} title="Adds families from requests marked enrolled in the last 30 days"
+        onClick={() => start(async () => {
+          const r = await addRecentEnrollments(slug);
+          setMsg(r.ok ? (r.added ? `Added ${r.added} new ${r.added === 1 ? 'family/athlete' : 'families/athletes'} from ${r.checked} recent enrollments.` : `All ${r.checked} recent enrollments were already in People.`) : r.error);
+        })}>
+        {pending ? 'Adding…' : 'Add recent enrollments'}
+      </button>
+    </span>
   );
 }

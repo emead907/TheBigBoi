@@ -2,6 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { addEnrolledToPeople } from '@/lib/enroll';
+import type { Trial } from '@/lib/types';
 import { getGymContext } from '@/lib/gym';
 import type { AccountRow, MemberRow, RegistrationRow } from '@/lib/people';
 import { formatPhone } from '@/lib/parse';
@@ -134,4 +137,23 @@ export async function importRegistrations(slug: string, rows: RegistrationRow[])
   }
   revalidatePath(`/${slug}/people`, 'layout');
   return { ok: true, total: rows.length, added: rows.filter((r) => !have.has(r.match_key)).length, linked: payload.filter((p) => p.member_id).length, unlinked: [...unlinked].sort() };
+}
+
+/** One-time catch-up: put families from recently enrolled requests into People. Safe to run more than once. */
+export async function addRecentEnrollments(slug: string, days = 30): Promise<{ ok: true; checked: number; added: number } | { ok: false; error: string }> {
+  const ctx = await getGymContext(slug);
+  if (ctx.role !== 'owner') return { ok: false, error: 'Only managers can do this.' };
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const db = createAdminClient();
+  const { data, error } = await db.from('trials').select('*').eq('gym_id', ctx.gym.id).eq('status', 'enrolled').gte('closed_at', since);
+  if (error) return { ok: false, error: error.message };
+  let added = 0;
+  for (const t of (data ?? []) as Trial[]) {
+    try {
+      const r = await addEnrolledToPeople(db, ctx.gym.id, t, ctx.today, { skipIfHasClass: true });
+      if (r.created.length) added++;
+    } catch { /* keep going */ }
+  }
+  revalidatePath(`/${slug}/people`, 'layout');
+  return { ok: true, checked: (data ?? []).length, added };
 }
