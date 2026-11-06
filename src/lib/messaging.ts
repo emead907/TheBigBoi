@@ -2,6 +2,8 @@ import 'server-only';
 import { Resend } from 'resend';
 import twilio from 'twilio';
 import { TRIAL_KEYS, type Channel, type Gym, type Template, type TemplateKey, type Trial } from './types';
+import type { MessageOverride } from './override';
+export { checkOverride, type MessageOverride } from './override';
 import { emailHtml, partyVars, plainLinks, renderTemplate, templateVars } from './templates';
 import type { Party } from './parties';
 import { toE164 } from './parse';
@@ -78,9 +80,6 @@ async function record(db: SupabaseClient, opts: {
  * Renders a template for a trial, sends it, and records it in `messages` + `activity`.
  * `db` is the signed-in client (manual sends) or the admin client (nightly job).
  */
-/** Wording a staff member edited in the send panel, used instead of the template's for this one message. */
-export type MessageOverride = { subject?: string | null; body: string };
-
 export async function sendTemplate(opts: {
   db: SupabaseClient; gym: Gym; trial: Trial; template: Template; sentBy?: string | null; actor: string; override?: MessageOverride;
 }): Promise<SendResult> {
@@ -151,15 +150,6 @@ export function trialSendOptions(templates: Template[], trial: Trial, gym: Gym) 
       body: renderTemplate(t.body, vars),
       blocked: channelReady(t.channel, gym) ?? recipientProblem(t.channel, trial),
     }));
-}
-
-/** Basic limits on edited wording. Returns a problem to show, or null. */
-export function checkOverride(o?: MessageOverride): string | null {
-  if (!o) return null;
-  if (typeof o.body !== 'string' || !o.body.trim()) return 'The message is empty.';
-  if (o.body.length > 10000) return 'The message is too long.';
-  if (o.subject != null && (typeof o.subject !== 'string' || o.subject.length > 200)) return 'The subject is too long.';
-  return null;
 }
 
 export const TEMPLATE_LABEL: Record<TemplateKey, string> = {

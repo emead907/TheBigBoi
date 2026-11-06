@@ -157,7 +157,7 @@ describe('enrollment plans', () => {
   });
 });
 
-import { checkOverride } from '../src/lib/messaging';
+import { checkOverride } from '../src/lib/override';
 describe('edited messages', () => {
   it('accepts normal edits and rejects empty or huge ones', () => {
     expect(checkOverride(undefined)).toBeNull();
