@@ -1,10 +1,10 @@
 export type Role = 'owner' | 'staff';
 export type TrialStatus = 'open' | 'enrolled' | 'not_enrolling' | 'no_show';
 export type Channel = 'email' | 'sms';
-export type TrialTemplateKey = 'spot_ready' | 'first_day_reminder' | 'follow_up' | 'follow_up_2';
+export type TrialTemplateKey = 'spot_ready' | 'first_day_confirm' | 'first_day_reminder' | 'follow_up' | 'follow_up_2';
 export type PartyTemplateKey = 'party_inquiry' | 'party_confirmation' | 'party_reminder' | 'party_thank_you';
 export type TemplateKey = TrialTemplateKey | PartyTemplateKey;
-export const TRIAL_KEYS: TrialTemplateKey[] = ['spot_ready', 'first_day_reminder', 'follow_up', 'follow_up_2'];
+export const TRIAL_KEYS: TrialTemplateKey[] = ['spot_ready', 'first_day_confirm', 'first_day_reminder', 'follow_up', 'follow_up_2'];
 export const PARTY_KEYS: PartyTemplateKey[] = ['party_inquiry', 'party_confirmation', 'party_reminder', 'party_thank_you'];
 export type Source = 'website' | 'email' | 'manual' | 'phone' | 'walk_in';
 
@@ -59,6 +59,7 @@ export interface Trial {
   closed_at: string | null;
   notes: string | null;
   reminder_sent_at: string | null;
+  confirm_sent_at?: string | null;
   waitlisted_at: string | null;
   offered_at: string | null;
   followup_sent_at: string | null;

@@ -78,13 +78,17 @@ async function record(db: SupabaseClient, opts: {
  * Renders a template for a trial, sends it, and records it in `messages` + `activity`.
  * `db` is the signed-in client (manual sends) or the admin client (nightly job).
  */
+/** Wording a staff member edited in the send panel, used instead of the template's for this one message. */
+export type MessageOverride = { subject?: string | null; body: string };
+
 export async function sendTemplate(opts: {
-  db: SupabaseClient; gym: Gym; trial: Trial; template: Template; sentBy?: string | null; actor: string;
+  db: SupabaseClient; gym: Gym; trial: Trial; template: Template; sentBy?: string | null; actor: string; override?: MessageOverride;
 }): Promise<SendResult> {
-  const { db, gym, trial, template } = opts;
+  const { db, gym, trial, template, override } = opts;
   const vars = templateVars(trial, gym);
-  const body = renderTemplate(template.body, vars);
-  const subject = template.subject ? renderTemplate(template.subject, vars) : null;
+  const body = renderTemplate(override?.body ?? template.body, vars);
+  const subjectSrc = override && override.subject !== undefined ? override.subject : template.subject;
+  const subject = subjectSrc ? renderTemplate(subjectSrc, vars) : null;
   const to = template.channel === 'email' ? trial.parent_email ?? '' : toE164(trial.parent_phone) ?? '';
   const { result, providerId } = await deliver(gym, template.channel, to, subject, body,
     channelReady(template.channel, gym) ?? recipientProblem(template.channel, trial));
@@ -94,6 +98,7 @@ export async function sendTemplate(opts: {
     const now = new Date().toISOString();
     const patch: Partial<Trial> =
       template.key === 'spot_ready' ? { spot_email_sent_at: trial.spot_email_sent_at ?? now }
+      : template.key === 'first_day_confirm' ? { confirm_sent_at: now }
       : template.key === 'first_day_reminder' ? { reminder_sent_at: now }
       : template.key === 'follow_up_2' ? { followup2_sent_at: now }
       : { followup_sent_at: now, followed_up_at: trial.followed_up_at ?? now };
@@ -109,12 +114,13 @@ export function partyRecipientProblem(channel: Channel, party: Party): string | 
 
 /** Same as sendTemplate, for a birthday party. */
 export async function sendPartyTemplate(opts: {
-  db: SupabaseClient; gym: Gym; party: Party; template: Template; sentBy?: string | null; actor: string;
+  db: SupabaseClient; gym: Gym; party: Party; template: Template; sentBy?: string | null; actor: string; override?: MessageOverride;
 }): Promise<SendResult> {
-  const { db, gym, party, template } = opts;
+  const { db, gym, party, template, override } = opts;
   const vars = partyVars(party, gym);
-  const body = renderTemplate(template.body, vars);
-  const subject = template.subject ? renderTemplate(template.subject, vars) : null;
+  const body = renderTemplate(override?.body ?? template.body, vars);
+  const subjectSrc = override && override.subject !== undefined ? override.subject : template.subject;
+  const subject = subjectSrc ? renderTemplate(subjectSrc, vars) : null;
   const to = party.parent_email ?? '';
   const { result, providerId } = await deliver(gym, template.channel, to, subject, body,
     channelReady(template.channel, gym) ?? partyRecipientProblem(template.channel, party));
@@ -147,8 +153,18 @@ export function trialSendOptions(templates: Template[], trial: Trial, gym: Gym) 
     }));
 }
 
+/** Basic limits on edited wording. Returns a problem to show, or null. */
+export function checkOverride(o?: MessageOverride): string | null {
+  if (!o) return null;
+  if (typeof o.body !== 'string' || !o.body.trim()) return 'The message is empty.';
+  if (o.body.length > 10000) return 'The message is too long.';
+  if (o.subject != null && (typeof o.subject !== 'string' || o.subject.length > 200)) return 'The subject is too long.';
+  return null;
+}
+
 export const TEMPLATE_LABEL: Record<TemplateKey, string> = {
   spot_ready: 'Spot is ready',
+  first_day_confirm: 'First-day confirmation',
   first_day_reminder: 'First-day reminder',
   follow_up: 'Follow-up',
   follow_up_2: 'Follow-up 2 (No-Risk policy)',

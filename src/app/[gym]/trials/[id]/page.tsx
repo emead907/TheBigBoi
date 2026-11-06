@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { stageOf, statusText, waitlistPositions } from '@/lib/stages';
 import { ageOn, formatDateTime, formatDay } from '@/lib/dates';
-import type { Activity, Template, Trial } from '@/lib/types';
+import { TRIAL_KEYS, type Activity, type Template, type Trial } from '@/lib/types';
 import { trialSendOptions } from '@/lib/messaging';
 import SendPanel from '@/components/SendPanel';
 import { Avatar, Card, splitClass } from '@/components/ui';
@@ -13,7 +13,7 @@ import { ChecklistCard, DeleteRequestButton, FamilyCard, FirstDayCard, NotesCard
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrialPage({ params }: { params: { gym: string; id: string } }) {
+export default async function TrialPage({ params, searchParams }: { params: { gym: string; id: string }; searchParams: { send?: string } }) {
   const ctx = await getGymContext(params.gym);
   const supabase = createClient();
   const [{ data: trialData }, { data: acts }, { data: tpls }] = await Promise.all([
@@ -60,6 +60,7 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
     { id: 'in_sportsengine', label: 'Added to SportsEngine', done: trial.in_sportsengine, sub: trial.in_sportsengine ? `Completed by ${by(/SportsEngine/, null)}` : 'Add the family before their first day' },
     { id: 'spot_email_sent_at', label: '“Spot is ready” email sent', done: !!trial.spot_email_sent_at, sub: trial.spot_email_sent_at ? `Sent · ${by(/spot email|Spot is ready/i, trial.spot_email_sent_at)}` : 'Use Send a message, or check it off' },
     { id: 'called_at', label: 'Welcome call completed', done: !!trial.called_at, sub: trial.called_at ? `Completed by ${by(/Marked called/, trial.called_at)}` : 'Call before their first day' },
+    ...(trial.first_day ? [{ id: 'confirm', label: 'First-day confirmation sent', done: !!trial.confirm_sent_at, sub: trial.confirm_sent_at ? `Sent · ${by(/confirmation/i, trial.confirm_sent_at)}` : 'Send it from Send a message once the date is set' }] : []),
     { id: 'reminder', label: 'First-day reminder sent', done: !!trial.reminder_sent_at, auto: true, sub: trial.reminder_sent_at ? `Sent · ${by(/reminder/i, trial.reminder_sent_at)}` : 'Goes out automatically the evening before' },
   ];
   if (stage === 'follow_up' || stage === 'enrolled' || stage === 'closed' || trial.followed_up_at) {
@@ -67,7 +68,8 @@ export default async function TrialPage({ params }: { params: { gym: string; id:
   }
 
   const options = trialSendOptions((tpls ?? []) as Template[], trial, ctx.gym);
-  const suggested = stage === 'new' ? 'spot_ready' : stage === 'upcoming' ? 'first_day_reminder' : trial.followup_sent_at || trial.followed_up_at ? 'follow_up_2' : 'follow_up';
+  const asked = TRIAL_KEYS.find((k) => k === searchParams.send);
+  const suggested = asked ?? (stage === 'new' ? 'spot_ready' : stage === 'upcoming' ? (trial.confirm_sent_at ? 'first_day_reminder' : 'first_day_confirm') : trial.followup_sent_at || trial.followed_up_at ? 'follow_up_2' : 'follow_up');
 
   const notesBy = activity.find((a) => a.detail === 'Updated notes');
 

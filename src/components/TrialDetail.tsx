@@ -5,7 +5,7 @@ import type { Trial } from '@/lib/types';
 import { statusOptions, statusPatch, statusValue } from '@/lib/stages';
 import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Card, CheckBox } from './ui';
-import { Clock, Edit, Trash } from './icons';
+import { Check, Clock, Edit, Trash } from './icons';
 
 function useSave(slug: string, id: string) {
   const router = useRouter();
@@ -90,6 +90,11 @@ export function FamilyCard({ slug, trial, age }: { slug: string; trial: Trial; a
         </form>
       )}
       <div className="mt-2">{note}</div>
+      {trial.first_day && (
+        trial.confirm_sent_at
+          ? <p className="mt-3 flex items-center gap-1.5 border-t border-[#edf0f4] pt-3 text-xs font-semibold text-stage-won"><Check className="h-3.5 w-3.5" />Confirmation sent</p>
+          : <a href="?send=first_day_confirm#send-panel" className="btn-primary mt-3 w-full rounded-xl text-sm">Send first-day confirmation</a>
+      )}
     </Card>
   );
 }

@@ -235,7 +235,7 @@ function Heads({ view }: { view: Stage | 'search' }) {
   const th = (l: string, c = '') => <th className={`px-3 py-3.5 ${c}`}>{l}</th>;
   if (view === 'waitlist') return <>{th('Spot in line', 'text-center')}{th('Waiting')}{th('')}</>;
   if (view === 'new') return <>{th('SportsEngine', 'text-center')}{th('Spot email', 'text-center')}{th('Called', 'text-center')}{th('First day')}</>;
-  if (view === 'upcoming') return <>{th('First day')}{th('Reminder')}</>;
+  if (view === 'upcoming') return <>{th('First day')}{th('Messages')}</>;
   if (view === 'today') return <>{th('Time')}{th('Showed up')}</>;
   if (view === 'follow_up') return <>{th('First day')}{th('Followed up', 'text-center')}{th('Status')}</>;
   return <>{th('Stage')}{th('First day')}</>;
@@ -284,10 +284,10 @@ function Cells({ onSend, t, view, save, mobile, pos }: { onSend: (t: Row) => voi
   if (view === 'upcoming') return (
     <>
       <Cell label="First day"><DatePill t={t} save={save} /></Cell>
-      <Cell label="Reminder">
-        <button type="button" onClick={() => onSend(t)} title="Preview and send the first-day reminder"
-          className={`chip cursor-pointer transition hover:ring-2 hover:ring-navy/30 ${t.reminder_sent_at ? 'bg-[#e3f3e9] text-stage-won' : 'bg-[#eef1f6] text-slate-brand hover:text-navy'}`}>
-          {t.reminder_sent_at ? 'Sent' : 'Night before'}
+      <Cell label="Messages">
+        <button type="button" onClick={() => onSend(t)} title={t.confirm_sent_at ? 'Preview and send the first-day reminder' : 'Preview and send the first-day confirmation'}
+          className={`chip cursor-pointer transition hover:ring-2 hover:ring-navy/30 ${t.reminder_sent_at ? 'bg-[#e3f3e9] text-stage-won' : !t.confirm_sent_at ? 'bg-[#fff2d6] text-[#8a5300]' : 'bg-[#eef1f6] text-slate-brand hover:text-navy'}`}>
+          {t.reminder_sent_at ? 'Reminder sent' : !t.confirm_sent_at ? 'Send confirmation' : 'Confirmed'}
         </button>
       </Cell>
     </>
@@ -346,8 +346,8 @@ function QuickSend({ slug, t, onClose }: { slug: string; t: Row; onClose: () => 
           className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-slate-brand hover:bg-[#eef1f6] hover:text-navy">×</button>
         {error ? <div className="card p-6 text-sm text-red-700">{error}</div>
           : !options ? <div className="card p-6 text-sm text-slate-brand">Loading preview…</div>
-          : <SendPanel slug={slug} trialId={t.id} options={options} suggested="first_day_reminder" />}
-        <p className="mt-2 text-center text-xs text-white/90">To {t.parent_name ?? 'parent'} about {t.child_name}{t.reminder_sent_at ? ' · reminder already sent' : ''}</p>
+          : <SendPanel slug={slug} trialId={t.id} options={options} suggested={t.confirm_sent_at ? 'first_day_reminder' : 'first_day_confirm'} />}
+        <p className="mt-2 text-center text-xs text-white/90">To {t.parent_name ?? 'parent'} about {t.child_name}{t.reminder_sent_at ? ' · reminder already sent' : t.confirm_sent_at ? ' · confirmation sent' : ''}</p>
       </div>
     </div>
   );

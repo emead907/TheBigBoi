@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getGymContext } from '@/lib/gym';
 import { formatDay } from '@/lib/dates';
 import { formatPhone, parseDateLoose } from '@/lib/parse';
-import { sendTemplate, trialSendOptions } from '@/lib/messaging';
+import { checkOverride, sendTemplate, trialSendOptions, type MessageOverride } from '@/lib/messaging';
 import type { SendOption } from '@/components/SendPanel';
 import { statusText } from '@/lib/stages';
 import { addEnrolledToPeople } from '@/lib/enroll';
@@ -92,8 +92,10 @@ export async function getTrialSendOptions(slug: string, id: string): Promise<{ o
   return { ok: true, options: trialSendOptions((tpls ?? []) as Template[], trial as Trial, ctx.gym) };
 }
 
-export async function sendTrialMessage(slug: string, id: string, key: TemplateKey, channel: Channel): Promise<ActionResult> {
+export async function sendTrialMessage(slug: string, id: string, key: TemplateKey, channel: Channel, override?: MessageOverride): Promise<ActionResult> {
   const ctx = await getGymContext(slug);
+  const bad = checkOverride(override);
+  if (bad) return { ok: false, error: bad };
   const supabase = createClient();
   const [{ data: trial }, { data: template }] = await Promise.all([
     supabase.from('trials').select('*').eq('id', id).eq('gym_id', ctx.gym.id).single(),
@@ -103,7 +105,7 @@ export async function sendTrialMessage(slug: string, id: string, key: TemplateKe
   if (!template) return { ok: false, error: 'That message template is missing. Add it in Settings.' };
 
   const res = await sendTemplate({
-    db: supabase, gym: ctx.gym, trial: trial as Trial, template: template as Template, sentBy: ctx.userId, actor: ctx.actor,
+    db: supabase, gym: ctx.gym, trial: trial as Trial, template: template as Template, sentBy: ctx.userId, actor: ctx.actor, override,
   });
   revalidatePath(`/${slug}`, 'layout');
   return res.ok ? { ok: true, message: channel === 'email' ? 'Email sent.' : 'Text sent.' } : { ok: false, error: res.error ?? 'Not sent.' };

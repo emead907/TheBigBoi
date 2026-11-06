@@ -156,3 +156,13 @@ describe('enrollment plans', () => {
     expect(statusText({ status: 'enrolled', enroll_plan: 'six_month' })).toBe('Enrolled – 6 months');
   });
 });
+
+import { checkOverride } from '../src/lib/messaging';
+describe('edited messages', () => {
+  it('accepts normal edits and rejects empty or huge ones', () => {
+    expect(checkOverride(undefined)).toBeNull();
+    expect(checkOverride({ subject: 'Hi', body: 'See you Monday!' })).toBeNull();
+    expect(checkOverride({ body: '   ' })).toBe('The message is empty.');
+    expect(checkOverride({ body: 'x'.repeat(10001) })).toBe('The message is too long.');
+  });
+});

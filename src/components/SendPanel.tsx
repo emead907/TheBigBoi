@@ -1,5 +1,5 @@
 'use client';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Channel, PartyTemplateKey, TemplateKey } from '@/lib/types';
 import { sendTrialMessage } from '@/app/[gym]/actions';
@@ -27,6 +27,7 @@ export interface SendOption {
 
 const TRIAL_TABS: { key: TemplateKey; label: string }[] = [
   { key: 'spot_ready', label: 'Spot ready' },
+  { key: 'first_day_confirm', label: 'Confirm' },
   { key: 'first_day_reminder', label: 'Reminder' },
   { key: 'follow_up', label: 'Follow-up' },
   { key: 'follow_up_2', label: 'Follow-up 2' },
@@ -45,13 +46,17 @@ export default function SendPanel({ slug, trialId, partyId, options, suggested =
   const KEYS = isParty ? PARTY_TABS : TRIAL_TABS;
   const router = useRouter();
   const [key, setKey] = useState<TemplateKey>(suggested);
+  useEffect(() => { setKey(suggested); }, [suggested]);
   const [channel, setChannel] = useState<Channel>('email');
   const [pending, start] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const o = options.find((x) => x.key === key && x.channel === channel);
+  const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
+  useEffect(() => { setDraft(null); }, [key, channel, o?.body, o?.subject]);
+  const edited = !!draft && (draft.body !== o?.body || draft.subject !== (o?.subject ?? ''));
 
   return (
-    <Card eyebrow="Family message" title={isParty ? 'Send an email' : 'Send a message'}>
+    <div id="send-panel" className="scroll-mt-6"><Card eyebrow="Family message" title={isParty ? 'Send an email' : 'Send a message'}>
       <div role="tablist" aria-label="Message" className="-mt-1 flex border-b border-[#e3e7ee]">
         {KEYS.map((k) => (
           <button key={k.key} role="tab" aria-selected={key === k.key} onClick={() => { setKey(k.key); setResult(null); }}
@@ -72,8 +77,21 @@ export default function SendPanel({ slug, trialId, partyId, options, suggested =
       </div>}
 
       <div className="mt-4 rounded-xl border border-[#e3e7ee] p-4">
-        <div className="eyebrow text-[10px]">Preview</div>
-        {o ? (
+        <div className="flex items-center justify-between">
+          <div className="eyebrow text-[10px]">{draft ? 'Editing this message' : 'Preview'}</div>
+          {o && (draft
+            ? <button type="button" className="text-xs font-semibold text-slate-brand hover:text-navy" onClick={() => setDraft(null)}>Undo changes</button>
+            : <button type="button" className="text-xs font-semibold text-navy hover:underline" onClick={() => setDraft({ subject: o.subject ?? '', body: o.body })}>Edit</button>)}
+        </div>
+        {o && draft ? (
+          <div className="mt-2 space-y-2">
+            {o.subject !== null && (
+              <input aria-label="Subject" className="input py-2 text-sm font-semibold" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
+            )}
+            <textarea aria-label="Message" rows={12} className="input text-xs leading-relaxed" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+            <p className="text-[11px] text-slate-brand">Changes apply to this message only. To change it for everyone, edit the template in Settings.</p>
+          </div>
+        ) : o ? (
           <div className="mt-2 max-h-72 overflow-y-auto text-xs leading-relaxed">
             {o.subject && <div className="mb-2 text-sm font-semibold text-navy">{o.subject}</div>}
             <p className="whitespace-pre-line text-[#3b4658]">{channel === 'sms' ? plainLinks(o.body) : withLinks(o.body)}</p>
@@ -82,17 +100,18 @@ export default function SendPanel({ slug, trialId, partyId, options, suggested =
       </div>
 
       {o?.blocked && <p className="mt-3 rounded-lg bg-[#fff6e5] px-3 py-2 text-xs text-[#8a5300]">{o.blocked}</p>}
-      <button className="btn-primary mt-4 w-full rounded-xl py-3" disabled={pending || !o || !!o.blocked}
+      <button className="btn-primary mt-4 w-full rounded-xl py-3" disabled={pending || !o || !!o.blocked || (!!draft && !draft.body.trim())}
         onClick={() => start(async () => {
           const res = isParty
-            ? await sendPartyMessage(slug, partyId!, key as PartyTemplateKey)
-            : await sendTrialMessage(slug, trialId!, key, channel);
+            ? await sendPartyMessage(slug, partyId!, key as PartyTemplateKey, edited ? { subject: draft!.subject, body: draft!.body } : undefined)
+            : await sendTrialMessage(slug, trialId!, key, channel, edited ? { subject: o?.subject === null ? null : draft!.subject, body: draft!.body } : undefined);
           setResult(res.ok ? { ok: true, text: res.message ?? 'Sent.' } : { ok: false, text: res.error });
+          if (res.ok) setDraft(null);
           router.refresh();
         })}>
         <Send className="h-4 w-4" />{pending ? 'Sending…' : `Send ${channel === 'email' ? 'email' : 'text'}`}
       </button>
       {result && <p role="status" className={`mt-2 text-sm ${result.ok ? 'text-stage-won' : 'text-red-700'}`}>{result.text}</p>}
-    </Card>
+    </Card></div>
   );
 }
