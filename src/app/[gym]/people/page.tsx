@@ -31,18 +31,20 @@ export default async function PeoplePage({ params, searchParams }: { params: { g
   regs.forEach((r) => r.member_id && regsByMember.set(r.member_id, [...(regsByMember.get(r.member_id) ?? []), r]));
   accounts.forEach((a) => a.members.forEach((m) => { m.regs = regsByMember.get(m.id) ?? []; }));
 
+  const jr = !!ctx.gym.jackrabbit_org_id;
+  const labels = { ...(jr ? { preschool: 'Preschool' } : {}), ...(ctx.gym.team_label !== 'Team' ? { team: `${ctx.gym.team_label} team` } : {}) };
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Families & athletes" title="People" subtitle="Everyone with an account at the gym, and the athletes on each account."
-        right={ctx.role === 'owner' ? <div className="flex flex-wrap items-center justify-end gap-2"><CatchUpButton slug={ctx.gym.slug} /><Link href={`/${ctx.gym.slug}/people/import`} className="btn-ghost rounded-xl"><UserPlus className="h-4 w-4" />Import from GoMotion</Link></div> : undefined} />
+        right={ctx.role === 'owner' ? <div className="flex flex-wrap items-center justify-end gap-2"><CatchUpButton slug={ctx.gym.slug} />{!jr && <Link href={`/${ctx.gym.slug}/people/import`} className="btn-ghost rounded-xl"><UserPlus className="h-4 w-4" />Import from GoMotion</Link>}</div> : undefined} />
       {accounts.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="display text-2xl">No people yet</div>
-          <p className="mt-1 text-sm text-slate-brand">Import a GoMotion account export to fill in your families and athletes.</p>
-          {ctx.role === 'owner' && <Link href={`/${ctx.gym.slug}/people/import`} className="btn-primary mt-4 rounded-xl">Import people</Link>}
+          <p className="mt-1 text-sm text-slate-brand">{jr ? 'Families and athletes load from Jackrabbit.' : 'Import a GoMotion account export to fill in your families and athletes.'}</p>
+          {ctx.role === 'owner' && !jr && <Link href={`/${ctx.gym.slug}/people/import`} className="btn-primary mt-4 rounded-xl">Import people</Link>}
         </div>
       ) : (
-        <PeopleDirectory slug={ctx.gym.slug} today={ctx.today} accounts={accounts} useRegs={regs.length > 0} initialTab={searchParams.tab === 'athletes' ? 'athletes' : 'families'} />
+        <PeopleDirectory slug={ctx.gym.slug} today={ctx.today} accounts={accounts} useRegs={regs.length > 0} labels={labels} initialTab={searchParams.tab === 'athletes' ? 'athletes' : 'families'} />
       )}
     </div>
   );

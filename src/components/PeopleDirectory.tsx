@@ -25,7 +25,7 @@ export interface DirAccount { id: string; first_name: string | null; last_name: 
 
 const full = (f?: string | null, l?: string | null) => [f, l].filter(Boolean).join(' ');
 
-export default function PeopleDirectory({ slug, today, accounts, initialTab, useRegs = false }: { slug: string; today: string; accounts: DirAccount[]; initialTab: 'families' | 'athletes'; useRegs?: boolean }) {
+export default function PeopleDirectory({ slug, today, accounts, initialTab, useRegs = false, labels = {} }: { slug: string; today: string; accounts: DirAccount[]; initialTab: 'families' | 'athletes'; useRegs?: boolean; labels?: Partial<Record<Program, string>> }) {
   const [tab, setTab] = useState(initialTab);
   const [q, setQ] = useState('');
   const [cls, setCls] = useState('');
@@ -40,7 +40,7 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab, use
   }, [athletes]);
   const inClass = athletes.filter((m) => m.cls.active.length > 0).length;
   const inProg = (m: (typeof athletes)[number], p: Program) => m.cls.active.some((n) => programOf(n) === p);
-  const progCounts = PROGRAMS.map((p) => ({ ...p, n: athletes.filter((m) => inProg(m, p.key)).length }));
+  const progCounts = PROGRAMS.map((p) => ({ ...p, label: labels[p.key] ?? p.label, n: athletes.filter((m) => inProg(m, p.key)).length }));
   const matches = (m: (typeof athletes)[number]) => (!cls || m.cls.active.includes(cls)) && (!prog || inProg(m, prog));
 
   const needle = q.trim().toLowerCase();
@@ -93,7 +93,7 @@ export default function PeopleDirectory({ slug, today, accounts, initialTab, use
           <option value="">All classes</option>
           {classList.map(([n, c]) => <option key={n} value={n}>{n} ({c})</option>)}
         </select>
-        {prog && <button type="button" className="chip bg-navy-50 text-navy" onClick={() => setProg('')}>{PROGRAMS.find((p) => p.key === prog)?.label} ✕</button>}
+        {prog && <button type="button" className="chip bg-navy-50 text-navy" onClick={() => setProg('')}>{progCounts.find((p) => p.key === prog)?.label} ✕</button>}
         <span className="text-sm text-slate-brand"><strong className="text-[#1b2433]">{shown}</strong> {tab}</span>
       </div>
 
