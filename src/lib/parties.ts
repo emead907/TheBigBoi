@@ -98,3 +98,16 @@ export function parsePartyEmail(text: string) {
     comments,
   };
 }
+
+/** "2:30pm" → the gym's matching party slot ("2:30 – 4:00 PM"), or the event's own times if none starts then. */
+export function slotForTimes(rules: PartyRules, ymd: string, start: string, end: string) {
+  const day = dayName(ymd);
+  const norm = (t: string) => t.replace(/\s/g, '').toLowerCase().replace(/(am|pm)$/, '');
+  const hit = day ? rules.slots[day].find((s) => norm(s.split('–')[0]).replace(/(am|pm)$/, '') === norm(start)) : undefined;
+  if (hit) return hit;
+  const fmt = (t: string) => t.trim().replace(/\s*(am|pm)$/i, (m) => ' ' + m.trim().toUpperCase());
+  const a = fmt(start); const b = fmt(end);
+  if (!a) return null;
+  if (!b) return a;
+  return `${a.slice(-2) === b.slice(-2) ? a.slice(0, -3) : a} – ${b}`;
+}

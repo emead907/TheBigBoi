@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const PUBLIC = ['/login', '/auth', '/api/intake', '/api/cron'];
+const PUBLIC = ['/login', '/auth', '/api/intake', '/api/cron', '/api/jackrabbit'];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
