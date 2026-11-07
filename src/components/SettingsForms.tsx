@@ -79,7 +79,7 @@ export function TemplateForm({ slug, k, channel, label, template, canAuto }: {
   );
 }
 
-export function IntakeBox({ slug, endpoint, intakeKey }: { slug: string; endpoint: string; intakeKey: string }) {
+export function IntakeBox({ slug, endpoint, intakeKey, jackrabbit = false }: { slug: string; endpoint: string; intakeKey: string; jackrabbit?: boolean }) {
   const { pending, run, note } = useAction();
   const snippet = `fetch('${endpoint}', {
   method: 'POST',
@@ -94,6 +94,16 @@ export function IntakeBox({ slug, endpoint, intakeKey }: { slug: string; endpoin
 });`;
   return (
     <section className="card p-5">
+      {jackrabbit && (
+        <div className="mb-5 rounded-xl border border-[#e3e7ee] bg-paper p-4">
+          <h2 className="display text-3xl">Jackrabbit key for Zapier</h2>
+          <p className="mt-1 text-sm text-slate-brand">Paste this into the Zapier workflow that sends Jackrabbit party bookings to the hub. Keep it private.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="break-all rounded-lg bg-[#0f1b2d] px-3 py-2 text-xs text-[#dfe6f0]">{intakeKey}</code>
+            <button type="button" className="btn-ghost" onClick={() => navigator.clipboard?.writeText(intakeKey)}>Copy key</button>
+          </div>
+        </div>
+      )}
       <h2 className="display text-3xl">Website form</h2>
       <p className="mt-1 text-sm text-slate-brand">Add this to the server code that handles your website&apos;s class request form (an API route, not the browser), so new requests land on the board automatically. Keep the key private: anyone with it can add requests.</p>
       <pre className="mt-3 overflow-x-auto rounded-lg bg-[#0f1b2d] p-4 text-xs text-[#dfe6f0]"><code>{snippet}</code></pre>

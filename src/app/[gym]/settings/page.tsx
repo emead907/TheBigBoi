@@ -70,7 +70,7 @@ export default async function SettingsPage({ params }: { params: { gym: string }
         </div>
       </section>
 
-      <IntakeBox slug={ctx.gym.slug} endpoint={`${site}/api/intake/${ctx.gym.slug}`} intakeKey={ctx.gym.intake_key} />
+      <IntakeBox slug={ctx.gym.slug} endpoint={`${site}/api/intake/${ctx.gym.slug}`} intakeKey={ctx.gym.intake_key} jackrabbit={!!ctx.gym.jackrabbit_org_id} />
 
       <StaffPanel slug={ctx.gym.slug} me={ctx.userId}
         gyms={ctx.gyms.map((g) => ({ id: g.id, name: g.short_name }))} currentGymId={ctx.gym.id}
