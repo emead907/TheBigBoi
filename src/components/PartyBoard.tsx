@@ -100,7 +100,7 @@ export default function PartyBoard({ slug, today, timezone, parties, initialStag
                       <div className="mt-1.5 rounded bg-[#eef0f3] px-1.5 py-2.5 text-center text-[11px] font-semibold text-[#5b6472]">No parties<br /><span className="font-normal">{rules.blocked[d.date]}</span></div>
                     ) : (
                     <div className="mt-1.5 space-y-1">
-                      {slotsOn(d.date, d.day).length === 0 && <div className="rounded bg-[#eef0f3] px-1.5 py-1 text-center text-[11px] text-[#5b6472]">No set times</div>}
+                      {slotsOn(d.date, d.day).length === 0 && <div className="rounded bg-[#eef0f3] px-1.5 py-1 text-center text-[11px] text-[#5b6472]">No parties</div>}
                       {slotsOn(d.date, d.day).map((slot) => {
                         const b = bookedAt(d.date, slot); const h = !b && heldAt(d.date, slot);
                         const label = slot.split('–')[0].trim();

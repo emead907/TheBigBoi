@@ -64,7 +64,7 @@ export default function PartyEditor({ slug, party, isOwner, rules }: { slug: str
           <div>
             <label htmlFor="p-time_slot" className="label text-[10px]">Time</label>
             <select id="p-time_slot" className="input" value={f.time_slot} onChange={(e) => setF({ ...f, time_slot: e.target.value })}>
-              <option value="">{slots.length ? 'Choose a time' : f.party_date ? 'Not a Saturday or Sunday' : 'Pick a date first'}</option>
+              <option value="">{slots.length ? 'Choose a time' : day ? 'No parties this day' : f.party_date ? 'Not a Saturday or Sunday' : 'Pick a date first'}</option>
               {[...new Set([...slots, ...(f.time_slot ? [f.time_slot] : [])])].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>

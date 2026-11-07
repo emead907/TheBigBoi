@@ -50,7 +50,7 @@ export default function NewPartyForm({ slug, rules }: { slug: string; rules: Par
           <div>
             <label htmlFor="np-time_slot" className="label text-[10px]">Time</label>
             <select id="np-time_slot" name="time_slot" className="input" value={f.time_slot} onChange={(e) => setF({ ...f, time_slot: e.target.value })}>
-              <option value="">{day ? 'Choose a time' : f.party_date ? 'Not a Saturday or Sunday' : 'Pick a date first'}</option>
+              <option value="">{slots.length ? 'Choose a time' : day ? 'No parties this day' : f.party_date ? 'Not a Saturday or Sunday' : 'Pick a date first'}</option>
               {[...new Set([...slots, ...(f.time_slot ? [f.time_slot] : [])])].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
