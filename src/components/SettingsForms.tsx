@@ -25,6 +25,7 @@ export function GymForm({ slug, gym }: { slug: string; gym: Gym }) {
     ['waiver_url', 'Parent portal waiver link (class emails)', 'https://www.gomotionapp.com/Login5.jsp?…'],
     ['jackrabbit_org_id', 'Jackrabbit org ID (leave blank if not on Jackrabbit)', '537979'],
     ['jackrabbit_location', 'Jackrabbit location (only show classes at this location)', 'Nampa'],
+    ['team_label', 'Team tab name (e.g. Team or Cheer)', 'Team'],
   ];
   return (
     <section className="card p-5">

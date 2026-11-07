@@ -186,7 +186,7 @@ export async function saveGym(slug: string, form: FormData): Promise<ActionResul
   const { error } = await createClient().from('gyms').update({
     name: s('name') ?? ctx.gym.name, short_name: s('short_name') ?? ctx.gym.short_name,
     phone: s('phone'), email: s('email'), from_email: s('from_email'), sms_from: s('sms_from'),
-    address: s('address'), website: s('website'), waiver_url: s('waiver_url'), jackrabbit_org_id: s('jackrabbit_org_id'), jackrabbit_location: s('jackrabbit_location'),
+    address: s('address'), website: s('website'), waiver_url: s('waiver_url'), jackrabbit_org_id: s('jackrabbit_org_id'), jackrabbit_location: s('jackrabbit_location'), team_label: s('team_label') ?? 'Team',
     ...(/^#[0-9a-f]{6}$/i.test(s('brand_color') ?? '') ? { brand_color: s('brand_color') } : {}),
     ...(/^#[0-9a-f]{6}$/i.test(s('accent_color') ?? '') ? { accent_color: s('accent_color') } : {}),
   }).eq('id', ctx.gym.id);

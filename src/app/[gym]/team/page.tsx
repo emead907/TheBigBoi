@@ -25,7 +25,7 @@ export default async function TeamPage({ params, searchParams }: { params: { gym
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Competition team" title="Team" subtitle="Roster, meets, paperwork, leos and practice groups."
+      <PageHeader eyebrow={ctx.gym.team_label === 'Cheer' ? 'Competition cheer' : 'Competition team'} title={ctx.gym.team_label === 'Cheer' ? 'Cheer team' : 'Team'} subtitle={ctx.gym.team_label === 'Cheer' ? 'Roster, competitions, paperwork, uniforms and practice groups.' : 'Roster, meets, paperwork, leos and practice groups.'}
         right={<Link href={`/${ctx.gym.slug}/team/new`} className="btn-ghost rounded-xl"><UserPlus className="h-4 w-4" />Add athlete</Link>} />
       {error ? (
         <div className="card p-8 text-sm text-red-700">The team tables aren&rsquo;t set up yet. Run the team SQL in Supabase, then refresh. ({error.message})</div>

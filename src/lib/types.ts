@@ -22,6 +22,7 @@ export interface Gym {
   waiver_url?: string | null;
   jackrabbit_org_id?: string | null;
   jackrabbit_location?: string | null;
+  team_label?: string | null;
   timezone: string;
   brand_color: string;
   accent_color: string;

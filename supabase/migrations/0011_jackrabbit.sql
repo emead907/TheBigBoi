@@ -30,3 +30,7 @@ from public.templates t
 join public.gyms n on n.id = t.gym_id and n.slug = 'gym-nest'
 cross join public.gyms e where e.slug = 'gym-nest-eagle'
 on conflict (gym_id, key, channel) do nothing;
+
+-- The Gym Nest's team is a cheer team.
+alter table public.gyms add column if not exists team_label text not null default 'Team';
+update public.gyms set team_label = 'Cheer' where slug in ('gym-nest', 'gym-nest-eagle');
