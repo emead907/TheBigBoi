@@ -30,12 +30,14 @@ export const BLOCKED_PARTY_DATES: Record<string, string> = {
 export type PartyDay = 'Saturday' | 'Sunday';
 export interface PartyRules { slots: Record<PartyDay, string[]>; blocked: Record<string, string>; basePrice: number | null }
 export const GYM_STARS_PARTIES: PartyRules = { slots: PARTY_SLOTS, blocked: BLOCKED_PARTY_DATES, basePrice: 265 };
-export const GYM_NEST_PARTIES: PartyRules = {
-  slots: { Saturday: ['2:30 – 4:00 PM'], Sunday: [] },
-  blocked: { '2026-11-26': 'Thanksgiving', '2026-11-27': 'Thanksgiving', '2026-11-28': 'Thanksgiving', '2026-11-29': 'Thanksgiving' },
-  basePrice: null,
+const NEST_BLOCKED = { '2026-11-26': 'Thanksgiving', '2026-11-27': 'Thanksgiving', '2026-11-28': 'Thanksgiving', '2026-11-29': 'Thanksgiving' };
+/** The Gym Nest: Saturday parties only, with different times at each location. */
+export const GYM_NEST_PARTIES: Record<'Nampa' | 'Eagle', PartyRules> = {
+  Nampa: { slots: { Saturday: ['12:30 – 2:00 PM', '2:30 – 4:00 PM', '4:30 – 6:00 PM'], Sunday: [] }, blocked: NEST_BLOCKED, basePrice: null },
+  Eagle: { slots: { Saturday: ['11:30 AM – 1:00 PM', '1:30 – 3:00 PM', '3:30 – 5:00 PM'], Sunday: [] }, blocked: NEST_BLOCKED, basePrice: null },
 };
-export const partyRules = (gym: { jackrabbit_org_id?: string | null }) => (gym.jackrabbit_org_id ? GYM_NEST_PARTIES : GYM_STARS_PARTIES);
+export const partyRules = (gym: { jackrabbit_org_id?: string | null; jackrabbit_location?: string | null }) =>
+  !gym.jackrabbit_org_id ? GYM_STARS_PARTIES : GYM_NEST_PARTIES[gym.jackrabbit_location === 'Eagle' ? 'Eagle' : 'Nampa'];
 
 export const ADD_ONS = ['Goodie Bags', 'Balloons', 'Cupcakes', 'Pizza', 'Socks', 'Additional Kids'];
 export const BASE_PRICE = 265;
