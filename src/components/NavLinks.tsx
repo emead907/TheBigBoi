@@ -2,10 +2,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export default function NavLinks({ slug, isOwner }: { slug: string; isOwner: boolean }) {
+export default function NavLinks({ slug, isOwner, hasClasses = false }: { slug: string; isOwner: boolean; hasClasses?: boolean }) {
   const pathname = usePathname();
   const links = [
     { href: `/${slug}`, label: 'Board', on: pathname === `/${slug}` || pathname.startsWith(`/${slug}/trials`) || pathname.startsWith(`/${slug}/new`) },
+    ...(hasClasses ? [{ href: `/${slug}/classes`, label: 'Classes', on: pathname.startsWith(`/${slug}/classes`) }] : []),
     { href: `/${slug}/parties`, label: 'Parties', on: pathname.startsWith(`/${slug}/parties`) },
     { href: `/${slug}/team`, label: 'Team', on: pathname.startsWith(`/${slug}/team`) },
     { href: `/${slug}/people`, label: 'People', on: pathname.startsWith(`/${slug}/people`) },
