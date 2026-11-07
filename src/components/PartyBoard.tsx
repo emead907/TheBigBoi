@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useMemo, useOptimistic, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { addDays, formatDay } from '@/lib/dates';
-import { BLOCKED_PARTY_DATES, PARTY_SLOTS, PARTY_STAGES, balance, conflicts, money, type Party, type PartyStage } from '@/lib/parties';
+import { PARTY_STAGES, type PartyRules, balance, conflicts, money, type Party, type PartyStage } from '@/lib/parties';
 import { deleteParty, updateParty, type PartyPatch } from '@/app/[gym]/parties/actions';
 import { Avatar, CheckBox, PageHeader } from './ui';
 import { ChevronRight, Plus, Search, Trash } from './icons';
@@ -11,8 +11,8 @@ import { ChevronRight, Plus, Search, Trash } from './icons';
 type Row = Party & { stage: PartyStage };
 const DOT: Record<PartyStage, string> = { inquiry: 'bg-stage-new', upcoming: 'bg-[#d64f8a]', past: 'bg-stage-won', closed: 'bg-stage-lost' };
 
-export default function PartyBoard({ slug, today, timezone, parties, initialStage, canDelete }: {
-  slug: string; today: string; timezone: string; parties: Row[]; initialStage: PartyStage; canDelete: boolean;
+export default function PartyBoard({ slug, today, timezone, parties, initialStage, canDelete, rules }: {
+  slug: string; today: string; timezone: string; parties: Row[]; initialStage: PartyStage; canDelete: boolean; rules: PartyRules;
 }) {
   const router = useRouter();
   const [stage, setStage] = useState(initialStage);
@@ -54,6 +54,9 @@ export default function PartyBoard({ slug, today, timezone, parties, initialStag
   }, [today]);
   const bookedAt = (date: string, slot: string) => rows.find((p) => p.status === 'booked' && p.party_date === date && p.time_slot === slot);
   const heldAt = (date: string, slot: string) => rows.find((p) => p.status === 'inquiry' && p.party_date === date && p.time_slot === slot);
+  // The gym's usual times, plus any other time a party is booked or requested that day.
+  const slotsOn = (date: string, day: 'Saturday' | 'Sunday') => [...new Set([...rules.slots[day],
+    ...rows.filter((p) => (p.status === 'booked' || p.status === 'inquiry') && p.party_date === date && p.time_slot).map((p) => p.time_slot as string)])];
 
   const month = today.slice(0, 7);
   const bookedThisMonth = rows.filter((p) => p.status === 'booked' || p.status === 'completed').filter((p) => p.party_date?.startsWith(month));
@@ -93,11 +96,12 @@ export default function PartyBoard({ slug, today, timezone, parties, initialStag
                 {pair.map((d) => (
                   <div key={d.date} className="rounded-lg border border-[#e3e7ee] p-2">
                     <div className="text-[11px] font-bold uppercase tracking-wide text-slate-brand">{formatDay(d.date)}</div>
-                    {BLOCKED_PARTY_DATES[d.date] && !rows.some((p) => p.status === 'booked' && p.party_date === d.date) ? (
-                      <div className="mt-1.5 rounded bg-[#eef0f3] px-1.5 py-2.5 text-center text-[11px] font-semibold text-[#5b6472]">No parties<br /><span className="font-normal">{BLOCKED_PARTY_DATES[d.date]}</span></div>
+                    {rules.blocked[d.date] && !rows.some((p) => p.status === 'booked' && p.party_date === d.date) ? (
+                      <div className="mt-1.5 rounded bg-[#eef0f3] px-1.5 py-2.5 text-center text-[11px] font-semibold text-[#5b6472]">No parties<br /><span className="font-normal">{rules.blocked[d.date]}</span></div>
                     ) : (
                     <div className="mt-1.5 space-y-1">
-                      {PARTY_SLOTS[d.day].map((slot) => {
+                      {slotsOn(d.date, d.day).length === 0 && <div className="rounded bg-[#eef0f3] px-1.5 py-1 text-center text-[11px] text-[#5b6472]">No set times</div>}
+                      {slotsOn(d.date, d.day).map((slot) => {
                         const b = bookedAt(d.date, slot); const h = !b && heldAt(d.date, slot);
                         const label = slot.split('–')[0].trim();
                         return b ? (
@@ -177,7 +181,7 @@ export default function PartyBoard({ slug, today, timezone, parties, initialStag
                         <div className="font-semibold">{p.party_date ? formatDay(p.party_date) : '—'}</div>
                         <div className="text-xs text-slate-brand">{p.time_slot}</div>
                         {clash && <div className="text-[10px] font-bold uppercase tracking-wider text-red-600">Slot already booked</div>}
-                        {p.party_date && BLOCKED_PARTY_DATES[p.party_date] && p.stage !== 'past' && p.stage !== 'closed' && <div className="text-[10px] font-bold uppercase tracking-wider text-red-600">No-party day: {BLOCKED_PARTY_DATES[p.party_date]}</div>}
+                        {p.party_date && rules.blocked[p.party_date] && p.stage !== 'past' && p.stage !== 'closed' && <div className="text-[10px] font-bold uppercase tracking-wider text-red-600">No-party day: {rules.blocked[p.party_date]}</div>}
                       </td>
                       <td className="px-3 py-3.5"><div className="font-semibold">{p.parent_name}</div><div className="text-xs text-slate-brand">{p.parent_phone}</div></td>
                       <td className="px-3 py-3.5 tabular-nums">{p.num_children ?? '—'}</td>

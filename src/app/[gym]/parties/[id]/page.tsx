@@ -11,6 +11,7 @@ import SendPanel from '@/components/SendPanel';
 import { Avatar, Card } from '@/components/ui';
 import { ArrowLeft } from '@/components/icons';
 import PartyEditor from '@/components/PartyEditor';
+import { partyRules } from '@/lib/parties';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,7 @@ export default async function PartyPage({ params }: { params: { gym: string; id:
         </p>
       )}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <PartyEditor slug={ctx.gym.slug} party={party} isOwner={ctx.role === 'owner'} />
+        <PartyEditor slug={ctx.gym.slug} party={party} isOwner={ctx.role === 'owner'} rules={partyRules(ctx.gym)} />
         <div className="min-w-0 space-y-5">
           <SendPanel slug={ctx.gym.slug} partyId={party.id} options={options} suggested={suggested} />
           {party.comments && <Card eyebrow="From the family" title="Their message"><p className="whitespace-pre-line text-sm">{party.comments}</p></Card>}

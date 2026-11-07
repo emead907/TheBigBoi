@@ -1,7 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { createParty } from '@/app/[gym]/parties/actions';
-import { ADD_ONS, BASE_PRICE, BLOCKED_PARTY_DATES, PARTY_SLOTS, dayName, parsePartyEmail } from '@/lib/parties';
+import { ADD_ONS, dayName, parsePartyEmail, type PartyRules } from '@/lib/parties';
 import { Card } from './ui';
 
 const blank = {
@@ -9,14 +9,14 @@ const blank = {
   party_date: '', time_slot: '', theme: '', children_ages: '', total_price: '', notes: '', comments: '', source: 'phone',
 };
 
-export default function NewPartyForm({ slug }: { slug: string }) {
+export default function NewPartyForm({ slug, rules }: { slug: string; rules: PartyRules }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState('');
   const [paste, setPaste] = useState('');
   const [f, setF] = useState(blank);
   const [addOns, setAddOns] = useState<string[]>([]);
   const day = dayName(f.party_date);
-  const slots = day ? PARTY_SLOTS[day] : [];
+  const slots = day ? rules.slots[day] : [];
 
   function fill() {
     const p = parsePartyEmail(paste);
@@ -46,7 +46,7 @@ export default function NewPartyForm({ slug }: { slug: string }) {
           {input('parent_name', 'Parent', 'text', { required: 'true' })}{input('parent_phone', 'Phone', 'tel')}
           {input('parent_email', 'Email', 'email')}{input('child_name', 'Birthday child')}
           {input('child_age', 'Turning')}{input('num_children', 'Number of kids', 'number', { min: '0' })}
-          <div>{input('party_date', 'Party date', 'date')}{f.party_date && BLOCKED_PARTY_DATES[f.party_date] && <p className="mt-1 text-xs text-red-700">No-party day ({BLOCKED_PARTY_DATES[f.party_date]})</p>}</div>
+          <div>{input('party_date', 'Party date', 'date')}{f.party_date && rules.blocked[f.party_date] && <p className="mt-1 text-xs text-red-700">No-party day ({rules.blocked[f.party_date]})</p>}</div>
           <div>
             <label htmlFor="np-time_slot" className="label text-[10px]">Time</label>
             <select id="np-time_slot" name="time_slot" className="input" value={f.time_slot} onChange={(e) => setF({ ...f, time_slot: e.target.value })}>
@@ -55,7 +55,7 @@ export default function NewPartyForm({ slug }: { slug: string }) {
             </select>
           </div>
           {input('children_ages', 'Guest ages')}{input('theme', 'Theme')}
-          {input('total_price', 'Total price', 'number', { min: '0', step: '0.01', placeholder: String(BASE_PRICE) })}
+          {input('total_price', 'Total price', 'number', { min: '0', step: '0.01', placeholder: rules.basePrice ? String(rules.basePrice) : '' })}
           <div>
             <label htmlFor="np-source" className="label text-[10px]">How did they reach us?</label>
             <select id="np-source" name="source" className="input" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>

@@ -1,14 +1,14 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ADD_ONS, BASE_PRICE, BLOCKED_PARTY_DATES, NON_REFUNDABLE, PARTY_SLOTS, balance, dayName, money, type Party } from '@/lib/parties';
+import { ADD_ONS, NON_REFUNDABLE, type PartyRules, balance, dayName, money, type Party } from '@/lib/parties';
 import { deleteParty, updateParty, type PartyPatch } from '@/app/[gym]/parties/actions';
 import { Card, CheckBox } from './ui';
 import { Trash } from './icons';
 
 const STATUSES: [Party['status'], string][] = [['inquiry', 'Inquiry'], ['booked', 'Booked'], ['completed', 'Completed'], ['cancelled', 'Cancelled'], ['not_booked', 'Not booked']];
 
-export default function PartyEditor({ slug, party, isOwner }: { slug: string; party: Party; isOwner: boolean }) {
+export default function PartyEditor({ slug, party, isOwner, rules }: { slug: string; party: Party; isOwner: boolean; rules: PartyRules }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -22,7 +22,7 @@ export default function PartyEditor({ slug, party, isOwner }: { slug: string; pa
   const save = (patch: PartyPatch, ok = 'Saved.') => { setMsg(null); start(async () => { const r = await updateParty(slug, party.id, patch); setMsg(r.ok ? { ok: true, text: ok } : { ok: false, text: r.error }); router.refresh(); }); };
   const stamp = (on: boolean) => (on ? new Date().toISOString() : null);
   const day = dayName(f.party_date);
-  const slots = day ? PARTY_SLOTS[day] : [];
+  const slots = day ? rules.slots[day] : [];
   const field = (k: keyof typeof f, label: string, type = 'text', extra: Record<string, string> = {}) => (
     <div>
       <label htmlFor={`p-${k}`} className="label text-[10px]">{label}</label>
@@ -70,7 +70,7 @@ export default function PartyEditor({ slug, party, isOwner }: { slug: string; pa
           </div>
           {field('coach', 'Coach', 'text', { placeholder: 'Who’s running it' })}
         </div>
-        {f.party_date && BLOCKED_PARTY_DATES[f.party_date] && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{new Date(f.party_date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })} is a no-party day ({BLOCKED_PARTY_DATES[f.party_date]}).</p>}
+        {f.party_date && rules.blocked[f.party_date] && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{new Date(f.party_date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })} is a no-party day ({rules.blocked[f.party_date]}).</p>}
         <button className="btn-ghost mt-3 rounded-xl" disabled={pending}
           onClick={() => save({ party_date: f.party_date || null, time_slot: f.time_slot || null, coach: f.coach || null })}>Save date & coach</button>
       </Card>
@@ -108,11 +108,11 @@ export default function PartyEditor({ slug, party, isOwner }: { slug: string; pa
 
       <Card eyebrow="Payment" title="Price & payment">
         <div className="grid gap-3 sm:grid-cols-3">
-          {field('total_price', 'Total price', 'number', { min: '0', step: '0.01', placeholder: String(BASE_PRICE) })}
+          {field('total_price', 'Total price', 'number', { min: '0', step: '0.01', placeholder: rules.basePrice ? String(rules.basePrice) : '' })}
           {field('amount_paid', 'Amount paid', 'number', { min: '0', step: '0.01' })}
           <div><div className="label text-[10px]">Balance</div><div className="pt-2 font-display text-3xl leading-none text-navy">{money(balance({ total_price: n(f.total_price), amount_paid: n(f.amount_paid) ?? 0 }))}</div></div>
         </div>
-        <p className="mt-2 text-xs text-slate-brand">Base package is {money(BASE_PRICE)} for up to 10 kids. Full cost is due upfront; all but {money(NON_REFUNDABLE)} is refundable if cancelled 24+ hours before.</p>
+        {rules.basePrice != null && <p className="mt-2 text-xs text-slate-brand">Base package is {money(rules.basePrice)} for up to 10 kids. Full cost is due upfront; all but {money(NON_REFUNDABLE)} is refundable if cancelled 24+ hours before.</p>}
         <button className="btn-ghost mt-3 rounded-xl" disabled={pending} onClick={() => save({ total_price: n(f.total_price), amount_paid: n(f.amount_paid) ?? 0 })}>Save payment</button>
       </Card>
 

@@ -26,6 +26,17 @@ export const BLOCKED_PARTY_DATES: Record<string, string> = {
   '2026-12-05': 'STARZ',
 };
 
+/** Party times, no-party days and pricing differ by gym. The Gym Nest (Jackrabbit) books its parties as Jackrabbit events. */
+export type PartyDay = 'Saturday' | 'Sunday';
+export interface PartyRules { slots: Record<PartyDay, string[]>; blocked: Record<string, string>; basePrice: number | null }
+export const GYM_STARS_PARTIES: PartyRules = { slots: PARTY_SLOTS, blocked: BLOCKED_PARTY_DATES, basePrice: 265 };
+export const GYM_NEST_PARTIES: PartyRules = {
+  slots: { Saturday: ['2:30 – 4:00 PM'], Sunday: [] },
+  blocked: { '2026-11-26': 'Thanksgiving', '2026-11-27': 'Thanksgiving', '2026-11-28': 'Thanksgiving', '2026-11-29': 'Thanksgiving' },
+  basePrice: null,
+};
+export const partyRules = (gym: { jackrabbit_org_id?: string | null }) => (gym.jackrabbit_org_id ? GYM_NEST_PARTIES : GYM_STARS_PARTIES);
+
 export const ADD_ONS = ['Goodie Bags', 'Balloons', 'Cupcakes', 'Pizza', 'Socks', 'Additional Kids'];
 export const BASE_PRICE = 265;
 export const NON_REFUNDABLE = 50;

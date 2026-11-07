@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getGymContext } from '@/lib/gym';
 import { addDays } from '@/lib/dates';
-import { partyStage, type Party, type PartyStage } from '@/lib/parties';
+import { partyRules, partyStage, type Party, type PartyStage } from '@/lib/parties';
 import PartyBoard from '@/components/PartyBoard';
 
 export const dynamic = 'force-dynamic';
@@ -14,5 +14,5 @@ export default async function PartiesPage({ params, searchParams }: { params: { 
   const parties = ((data ?? []) as Party[]).map((p) => ({ ...p, stage: partyStage(p, ctx.today) }));
   const valid: PartyStage[] = ['inquiry', 'upcoming', 'past', 'closed'];
   const stage = valid.includes(searchParams.stage as PartyStage) ? (searchParams.stage as PartyStage) : 'inquiry';
-  return <PartyBoard slug={ctx.gym.slug} today={ctx.today} timezone={ctx.gym.timezone} parties={parties} initialStage={stage} canDelete={ctx.role === 'owner'} />;
+  return <PartyBoard slug={ctx.gym.slug} today={ctx.today} timezone={ctx.gym.timezone} parties={parties} initialStage={stage} canDelete={ctx.role === 'owner'} rules={partyRules(ctx.gym)} />;
 }
