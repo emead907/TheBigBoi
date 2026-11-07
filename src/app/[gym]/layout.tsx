@@ -15,8 +15,11 @@ export default async function GymLayout({ children, params }: { children: React.
           <Link href={`/${ctx.gym.slug}`} className="flex items-center gap-2.5 py-3">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 ring-1 ring-white/20"><Sparkle className="h-4 w-4" /></span>
             <span className="font-display text-[26px] leading-none tracking-wide">{ctx.gym.short_name.toUpperCase()} <span className="text-accent">HUB</span></span>
+            {ctx.gym.location_label && (
+              <span className="rounded-md bg-accent px-2 py-1 font-display text-[18px] leading-none tracking-wider text-navy">{ctx.gym.location_label.toUpperCase()}</span>
+            )}
           </Link>
-          <GymSwitcher gyms={ctx.gyms.map((g) => ({ slug: g.slug, name: g.short_name }))} current={ctx.gym.slug} />
+          <GymSwitcher gyms={ctx.gyms.map((g) => ({ slug: g.slug, name: g.location_label ? `${g.short_name} – ${g.location_label}` : g.short_name }))} current={ctx.gym.slug} />
           <div className="ml-auto flex items-center gap-4">
             <NavLinks slug={ctx.gym.slug} isOwner={ctx.role === 'owner'} hasClasses={!!ctx.gym.jackrabbit_org_id} teamLabel={ctx.gym.team_label || 'Team'} />
             <UserMenu name={ctx.actor} role={ctx.role === 'owner' ? 'Manager' : 'Staff'} />

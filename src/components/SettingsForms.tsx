@@ -26,6 +26,7 @@ export function GymForm({ slug, gym }: { slug: string; gym: Gym }) {
     ['jackrabbit_org_id', 'Jackrabbit org ID (leave blank if not on Jackrabbit)', '537979'],
     ['jackrabbit_location', 'Jackrabbit location (only show classes at this location)', 'Nampa'],
     ['team_label', 'Team tab name (e.g. Team or Cheer)', 'Team'],
+    ['location_label', 'Location label in the header (e.g. Nampa)', ''],
   ];
   return (
     <section className="card p-5">
