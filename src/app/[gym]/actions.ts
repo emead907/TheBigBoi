@@ -26,7 +26,7 @@ export type TrialPatch = Partial<Pick<Trial, Editable>>;
 function describe(patch: TrialPatch): string[] {
   const out: string[] = [];
   const has = (k: Editable) => Object.prototype.hasOwnProperty.call(patch, k);
-  if (has('in_sportsengine')) out.push(patch.in_sportsengine ? 'Added to SportsEngine' : 'Unchecked SportsEngine');
+  if (has('in_sportsengine')) out.push(patch.in_sportsengine ? 'Marked as added (SportsEngine / Jackrabbit)' : 'Unchecked added to SportsEngine / Jackrabbit');
   if (has('spot_email_sent_at')) out.push(patch.spot_email_sent_at ? 'Marked spot email sent' : 'Unchecked spot email');
   if (has('called_at')) out.push(patch.called_at ? 'Marked called' : 'Unchecked called');
   if (has('first_day')) out.push(patch.first_day ? `First day set to ${formatDay(patch.first_day)}` : 'First day cleared');
@@ -243,4 +243,48 @@ export async function removeStaff(slug: string, userId: string): Promise<ActionR
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/${slug}/settings`);
   return { ok: true, message: 'Removed.' };
+}
+
+/**
+ * "Add to Jackrabbit": sends this family to Zapier, which creates the family,
+ * parent contact and student in Jackrabbit, then reports back to /api/jackrabbit/added.
+ * Nampa hub only for now.
+ */
+export async function addToJackrabbit(slug: string, id: string): Promise<ActionResult> {
+  const { jackrabbitSyncOn, splitName } = await import('@/lib/jackrabbit-sync');
+  const ctx = await getGymContext(slug);
+  if (!jackrabbitSyncOn(ctx.gym.slug)) return { ok: false, error: 'Adding to Jackrabbit isn’t turned on for this hub yet.' };
+  const hook = process.env.JACKRABBIT_ADD_HOOK_URL;
+  if (!hook) return { ok: false, error: 'JACKRABBIT_ADD_HOOK_URL isn’t set in Vercel yet.' };
+
+  const supabase = createClient();
+  const { data: t } = await supabase.from('trials').select('*').eq('id', id).eq('gym_id', ctx.gym.id).maybeSingle();
+  if (!t) return { ok: false, error: 'Request not found.' };
+  const trial = t as Trial;
+  const parent = splitName(trial.parent_name);
+  const child = splitName(trial.child_name);
+  if (!parent.last) return { ok: false, error: 'Add the parent’s first and last name first (Edit on Family information).' };
+  if (!trial.parent_email || !trial.parent_phone) return { ok: false, error: 'Add the parent’s email and phone first.' };
+  if (!trial.birthday) return { ok: false, error: 'Add the child’s birthday first. Jackrabbit needs it for the student.' };
+
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
+  try {
+    const res = await fetch(hook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gym: ctx.gym.slug, trial_id: trial.id, location: ctx.gym.jackrabbit_location ?? '',
+        callback_url: `${site}/api/jackrabbit/added`, callback_key: ctx.gym.intake_key,
+        parent_first: parent.first, parent_last: parent.last, email: trial.parent_email, phone: trial.parent_phone, zip: trial.zip ?? '',
+        child_first: child.first || trial.child_name, child_last: child.last || parent.last, birthday: trial.birthday,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { ok: false, error: `Zapier answered ${res.status}.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+  await supabase.from('activity').insert({ gym_id: ctx.gym.id, trial_id: id, user_id: ctx.userId, actor: ctx.actor, kind: 'update', detail: 'Sent to Jackrabbit' });
+  revalidatePath(`/${slug}/trials/${id}`);
+  return { ok: true, message: 'Sent to Jackrabbit. Refresh in a minute to see the family ID.' };
 }

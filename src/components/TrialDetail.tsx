@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Trial } from '@/lib/types';
 import { statusOptions, statusPatch, statusValue } from '@/lib/stages';
-import { deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
+import { addToJackrabbit, deleteTrial, updateTrial, type TrialPatch } from '@/app/[gym]/actions';
 import { Card, CheckBox } from './ui';
 import { Check, Clock, Edit, Trash } from './icons';
 
@@ -263,5 +263,33 @@ export function DeleteRequestButton({ slug, id, name }: { slug: string; id: stri
       }}>
       <Trash className="h-4 w-4" />{pending ? 'Deleting…' : 'Delete'}
     </button>
+  );
+}
+
+export function AddToJackrabbitButton({ slug, id, added }: { slug: string; id: string; added: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e3e7ee] bg-white px-5 py-3">
+      <span className="text-sm text-slate-brand">
+        {added ? 'This family is in Jackrabbit.' : 'Not in Jackrabbit yet? Add the family, parent and child in one click.'}
+      </span>
+      <div className="flex items-center gap-3">
+        {msg && <p role="status" className={`text-xs ${msg.ok ? 'text-stage-won' : 'text-red-700'}`}>{msg.text}</p>}
+        <button type="button" className={added ? 'btn-ghost rounded-xl' : 'btn-primary rounded-xl'} disabled={pending}
+          onClick={() => {
+            if (added && !window.confirm('This family is already marked as in Jackrabbit. Send it again?')) return;
+            setMsg(null);
+            start(async () => {
+              const res = await addToJackrabbit(slug, id);
+              setMsg(res.ok ? { ok: true, text: res.message ?? 'Sent.' } : { ok: false, text: res.error });
+              router.refresh();
+            });
+          }}>
+          {pending ? 'Sending…' : added ? 'Add to Jackrabbit again' : 'Add to Jackrabbit'}
+        </button>
+      </div>
+    </div>
   );
 }

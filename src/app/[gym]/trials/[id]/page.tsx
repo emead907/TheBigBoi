@@ -6,10 +6,11 @@ import { stageOf, statusText, waitlistPositions } from '@/lib/stages';
 import { ageOn, formatDateTime, formatDay } from '@/lib/dates';
 import { TRIAL_KEYS, type Activity, type Template, type Trial } from '@/lib/types';
 import { trialSendOptions } from '@/lib/messaging';
+import { jackrabbitSyncOn } from '@/lib/jackrabbit-sync';
 import SendPanel from '@/components/SendPanel';
 import { Avatar, Card, splitClass } from '@/components/ui';
 import { ArrowLeft, Calendar, Check, Mail, Message, Note, Phone, UserPlus } from '@/components/icons';
-import { ChecklistCard, DeleteRequestButton, FamilyCard, FirstDayCard, NotesCard, StatusSelect, WaitlistCard, type CheckItem } from '@/components/TrialDetail';
+import { AddToJackrabbitButton, ChecklistCard, DeleteRequestButton, FamilyCard, FirstDayCard, NotesCard, StatusSelect, WaitlistCard, type CheckItem } from '@/components/TrialDetail';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,9 @@ export default async function TrialPage({ params, searchParams }: { params: { gy
   const badge = closed ? (trial.status === 'no_show' ? 'No-show' : 'Not enrolling') : trial.status === 'enrolled' ? statusText(trial) : stage === 'waitlist' ? 'Waitlist' : 'In progress';
 
   const checklist: CheckItem[] = [
-    { id: 'in_sportsengine', label: 'Added to SportsEngine', done: trial.in_sportsengine, sub: trial.in_sportsengine ? `Completed by ${by(/SportsEngine/, null)}` : 'Add the family before their first day' },
+    ctx.gym.jackrabbit_org_id
+      ? { id: 'in_sportsengine', label: 'Added to Jackrabbit', done: trial.in_sportsengine, sub: trial.in_sportsengine ? `Completed by ${by(/Jackrabbit|SportsEngine/, null)}` : 'Add the family before their first day' }
+      : { id: 'in_sportsengine', label: 'Added to SportsEngine', done: trial.in_sportsengine, sub: trial.in_sportsengine ? `Completed by ${by(/SportsEngine/, null)}` : 'Add the family before their first day' },
     { id: 'spot_email_sent_at', label: '“Spot is ready” email sent', done: !!trial.spot_email_sent_at, sub: trial.spot_email_sent_at ? `Sent · ${by(/spot email|Spot is ready/i, trial.spot_email_sent_at)}` : 'Use Send a message, or check it off' },
     { id: 'called_at', label: 'Welcome call completed', done: !!trial.called_at, sub: trial.called_at ? `Completed by ${by(/Marked called/, trial.called_at)}` : 'Call before their first day' },
     ...(trial.first_day ? [{ id: 'confirm', label: 'First-day confirmation sent', done: !!trial.confirm_sent_at, sub: trial.confirm_sent_at ? `Sent · ${by(/confirmation/i, trial.confirm_sent_at)}` : 'Send it from Send a message once the date is set' }] : []),
@@ -134,6 +137,8 @@ export default async function TrialPage({ params, searchParams }: { params: { gy
             <FamilyCard slug={ctx.gym.slug} trial={trial} age={ageOn(trial.birthday, ctx.today)} />
             <FirstDayCard slug={ctx.gym.slug} trial={trial} className={cls.name} classDetail={cls.detail} />
           </div>
+
+          {jackrabbitSyncOn(ctx.gym.slug) && <AddToJackrabbitButton slug={ctx.gym.slug} id={trial.id} added={trial.in_sportsengine} />}
 
           <ChecklistCard slug={ctx.gym.slug} trialId={trial.id} items={checklist} showedUp={trial.showed_up}
             showAttendance={stage === 'today' || stage === 'follow_up' || trial.showed_up != null} />
