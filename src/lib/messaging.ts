@@ -8,6 +8,7 @@ import { emailHtml, partyVars, plainLinks, renderTemplate, templateVars } from '
 import type { Party } from './parties';
 import { toE164 } from './parse';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { gmailRelayOn, sendViaGmail } from './gmail-relay';
 
 export interface SendResult {
   ok: boolean;
@@ -16,7 +17,9 @@ export interface SendResult {
 }
 
 export function channelReady(channel: Channel, gym: Gym): string | null {
-  if (channel === 'email') {
+  if (channel === 'email' && gmailRelayOn(gym.slug)) {
+    if (!process.env.GMAIL_RELAY_HOOK_URL) return 'Email is not set up yet (add GMAIL_RELAY_HOOK_URL in Vercel).';
+  } else if (channel === 'email') {
     if (!process.env.RESEND_API_KEY) return 'Email is not set up yet (add RESEND_API_KEY in Vercel).';
     if (!gym.from_email) return 'Add a "send from" address in Settings.';
   } else {
@@ -33,12 +36,17 @@ export function recipientProblem(channel: Channel, trial: Trial): string | null 
   return null;
 }
 
-/** Sends one message through Resend or Twilio. */
+/** Sends one message through Resend (or the gym's Gmail, see gmail-relay.ts) or Twilio. */
 async function deliver(gym: Gym, channel: Channel, to: string, subject: string | null, body: string, blocked: string | null) {
   let providerId: string | null = null;
   if (blocked) return { result: { ok: false, status: blocked.includes('not set up') ? 'not_configured' : 'failed', error: blocked } as SendResult, providerId };
   try {
-    if (channel === 'email') {
+    if (channel === 'email' && gmailRelayOn(gym.slug)) {
+      providerId = await sendViaGmail({
+        gym: gym.slug, fromName: gym.name.replace(/\s+[–-]\s+.*$/, ''), replyTo: gym.email, to,
+        subject: subject ?? gym.name, text: plainLinks(body), html: emailHtml(body, gym),
+      });
+    } else if (channel === 'email') {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const { data, error } = await resend.emails.send({
         from: gym.from_email!, to, replyTo: gym.email ?? undefined,
