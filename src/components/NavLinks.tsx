@@ -11,6 +11,8 @@ export default function NavLinks({ slug, isOwner, hasClasses = false, teamLabel 
     { href: `/${slug}/team`, label: teamLabel, on: pathname.startsWith(`/${slug}/team`) },
     { href: `/${slug}/people`, label: 'People', on: pathname.startsWith(`/${slug}/people`) },
     { href: `/${slug}/reports`, label: 'Reports', on: pathname.startsWith(`/${slug}/reports`) },
+    // Temporary: Thanksgiving coverage tracker (Gym Stars only). Remove after the holidays.
+    ...(slug === 'gym-stars' ? [{ href: `/${slug}/coverage`, label: 'Coverage', on: pathname.startsWith(`/${slug}/coverage`) }] : []),
     ...(isOwner ? [{ href: `/${slug}/settings`, label: 'Settings', on: pathname.startsWith(`/${slug}/settings`) }] : []),
   ];
   return (
