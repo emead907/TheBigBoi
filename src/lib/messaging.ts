@@ -9,6 +9,7 @@ import type { Party } from './parties';
 import { toE164 } from './parse';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { gmailRelayOn, sendViaGmail } from './gmail-relay';
+import { ringCentralMissing, ringCentralOn, sendViaRingCentral } from './ringcentral';
 
 export interface SendResult {
   ok: boolean;
@@ -22,6 +23,10 @@ export function channelReady(channel: Channel, gym: Gym): string | null {
   } else if (channel === 'email') {
     if (!process.env.RESEND_API_KEY) return 'Email is not set up yet (add RESEND_API_KEY in Vercel).';
     if (!gym.from_email) return 'Add a "send from" address in Settings.';
+  } else if (ringCentralOn(gym.slug)) {
+    const missing = ringCentralMissing();
+    if (missing) return missing;
+    if (!gym.sms_from) return 'Add the gym\'s RingCentral texting number in Settings.';
   } else {
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return 'Texting is not set up yet (add the Twilio keys in Vercel).';
     if (!gym.sms_from) return 'Add the gym\'s Twilio number in Settings.';
@@ -36,7 +41,7 @@ export function recipientProblem(channel: Channel, trial: Trial): string | null 
   return null;
 }
 
-/** Sends one message through Resend (or the gym's Gmail, see gmail-relay.ts) or Twilio. */
+/** Sends one message through Resend (or the gym's Gmail, see gmail-relay.ts), or texts through Twilio (or RingCentral, see ringcentral.ts). */
 async function deliver(gym: Gym, channel: Channel, to: string, subject: string | null, body: string, blocked: string | null) {
   let providerId: string | null = null;
   if (blocked) return { result: { ok: false, status: blocked.includes('not set up') ? 'not_configured' : 'failed', error: blocked } as SendResult, providerId };
@@ -54,6 +59,8 @@ async function deliver(gym: Gym, channel: Channel, to: string, subject: string |
       });
       if (error) throw new Error(error.message);
       providerId = data?.id ?? null;
+    } else if (ringCentralOn(gym.slug)) {
+      providerId = await sendViaRingCentral({ from: toE164(gym.sms_from) ?? gym.sms_from!, to, text: plainLinks(body) });
     } else {
       const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
       const msg = await client.messages.create({ from: gym.sms_from!, to, body: plainLinks(body) });
